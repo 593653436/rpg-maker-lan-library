@@ -77,6 +77,15 @@ npm run check:public  # 公开仓库脱敏审计（CI 亦执行）
 
 KRKR 与 RGSS 的浏览器运行时为第三方开源项目编译产物，许可证与来源见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
+## AI 协作开发
+
+本项目在开发与调试过程中得到以下 AI 的协助：
+
+- **OpenAI GPT**
+- **DeepSeek**
+
+感谢它们在兼容规则设计、问题排查与文档整理上的支持。
+
 ## 许可
 
 MIT © 2026 雾灯游戏柜。第三方运行时按其各自许可证分发。
