@@ -1,0 +1,57 @@
+name: 游戏兼容问题
+about: 报告 RPG Maker 游戏黑屏、卡加载、插件错误或存档问题
+labels: [compatibility]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        不要上传游戏本体、完整商业插件、存档、翻译文件或包含账号/路径/Cookie 的日志。
+  - type: input
+    id: engine
+    attributes:
+      label: 引擎与版本
+      placeholder: RPG Maker MV 1.6.2 / MZ 1.8.0
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: 游戏名称与版本
+      description: 仅用于兼容性互操作记录
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 最小复现步骤
+      placeholder: 点击开始 → 标题页 → 继续游戏 → 卡在 Now Loading
+    validations:
+      required: true
+  - type: textarea
+    id: first-error
+    attributes:
+      label: 第一个异常或阻塞边界
+      description: 请不要只贴最后的连锁错误
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 脱敏诊断摘要
+      description: 删除用户名、绝对路径、NAS 地址、账号、Cookie 和存档内容
+      render: json
+  - type: input
+    id: plugins
+    attributes:
+      label: 相关插件及公开来源
+      placeholder: 插件名、版本、作者发布页
+  - type: checkboxes
+    id: legal
+    attributes:
+      label: 确认
+      options:
+        - label: 我有权使用该游戏，并且没有上传游戏、存档或商业插件内容
+          required: true
+        - label: 日志已删除个人路径、凭据、Cookie 和网络地址
+          required: true

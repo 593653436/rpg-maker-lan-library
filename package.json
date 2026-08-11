@@ -1,0 +1,31 @@
+{
+  "name": "rpg-maker-lan-library",
+  "version": "1.1.0",
+  "description": "Stream locally owned RPG Maker MV/MZ, RGSS (VX Ace) and KiriKiri 2 (KRKR) games over a LAN from any local or SMB/UNC path, with save bridging and content-signature-gated browser compatibility fixes.",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "start": "node server.mjs",
+    "test": "node --test",
+    "check:public": "node scripts/public-audit.mjs",
+    "gen:signatures": "node scripts/gen-compat-signatures.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "rpg-maker",
+    "rpg-maker-mv",
+    "rpg-maker-mz",
+    "rgss",
+    "rpg-maker-vx-ace",
+    "kirikiri",
+    "krkr",
+    "lan",
+    "smb",
+    "game-streaming",
+    "save-sync"
+  ],
+  "license": "MIT"
+}

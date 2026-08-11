@@ -1,0 +1,29 @@
+{
+  "host": "0.0.0.0",
+  "port": 8787,
+  "sourceRoot": "C:\\path\\to\\your\\rpg-maker-games",
+  "recollectionRoot": "C:\\path\\to\\your\\web-recollections",
+  "libraryDir": "./library",
+  "dataDir": "./data",
+  "siteTitle": "RPG Maker LAN Library",
+  "rtpRoot": "./RPGRTP",
+  "https": {
+    "enabled": false,
+    "port": 8788,
+    "publicHost": "192.168.1.100",
+    "keyFile": "./certs/server.key",
+    "certFile": "./certs/server.crt"
+  },
+  "proxy": {
+    "trustForwardedHeaders": true
+  },
+  "auth": {
+    "adminUsername": "admin",
+    "adminPasswordSalt": "generated-by-npm-run-setup",
+    "adminPasswordHash": "generated-by-npm-run-setup",
+    "sessionSecret": "generated-by-npm-run-setup"
+  },
+  "compatGames": {},
+  "translationExtraFiles": {},
+  "krkrBundledSaveFiles": {}
+}

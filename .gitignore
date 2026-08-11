@@ -1,0 +1,41 @@
+# Runtime secrets and state
+config.json
+data/
+library/
+games/
+recollections/
+log/
+logs/
+*.log
+*.tmp
+
+# Game content and saves
+*.rpgsave
+*.rmmzsave
+*.rvdata2
+*.rpgmvp
+*.rpgmvo
+*.rpgmvm
+*.png_
+*.exe
+*.dll
+*.pak
+*.nw
+
+# Local tooling and browser profiles
+MTool/
+node_modules/
+coverage/
+.cache/
+chrome-*-profile/
+**/chrome-*-profile/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Tests generate these locally
+tests/.tmp/
+tests/*.log

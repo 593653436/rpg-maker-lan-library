@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#11130f">
+  <title>登录 · 雾灯游戏柜</title>
+  <link rel="stylesheet" href="/login.css">
+</head>
+<body>
+  <main class="login-shell">
+    <section class="login-brand" aria-label="雾灯游戏柜">
+      <div class="login-brand__sigil">R</div>
+      <p class="eyebrow">PRIVATE LAN ARCHIVE</p>
+      <h1>雾灯<br>游戏柜</h1>
+      <p class="login-brand__copy">游戏与网页回想室，只在你的局域网中开放。</p>
+      <div class="access-lines"><span>RPG MAKER</span><span>UNITY RECOLLECTION</span><span>SMB DIRECT</span></div>
+    </section>
+    <section class="login-panel">
+      <div class="login-panel__number">01 / ACCESS</div>
+      <header><p class="eyebrow">ACCOUNT ACCESS</p><h2 id="access-title">账号登录</h2></header>
+      <div class="access-tabs"><button id="show-login" class="active" type="button">登录</button><button id="show-register" type="button">注册账号</button></div>
+      <form id="login-form">
+        <label>账号<input id="username" name="username" autocomplete="username" required autofocus></label>
+        <label>密码<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+        <p id="login-message" role="alert"></p>
+        <button class="login-button" type="submit">登录</button>
+      </form>
+      <form id="register-form" hidden>
+        <label>用户名<input name="username" autocomplete="username" minlength="2" maxlength="32" required></label>
+        <label>密码<input name="password" type="password" autocomplete="new-password" minlength="4" maxlength="128" required></label>
+        <label>确认密码<input name="confirmPassword" type="password" autocomplete="new-password" minlength="4" maxlength="128" required></label>
+        <p id="register-message" role="alert"></p>
+        <button class="login-button" type="submit">注册并登录</button>
+      </form>
+      <div class="guest-divider"><span>或者</span></div>
+      <form id="guest-form" class="guest-form">
+        <label>游客访问密码<input id="guest-password" name="password" type="password" autocomplete="current-password" required></label>
+        <button id="guest-login" class="guest-button" type="submit">以游客身份进入</button>
+      </form>
+      <p class="guest-note">游客可以浏览、游玩并读取 NAS 默认存档，但不能保存进度；注册账号后可使用独立存档、评分和评论。</p>
+    </section>
+  </main>
+  <script src="/login.js" type="module"></script>
+</body>
+</html>

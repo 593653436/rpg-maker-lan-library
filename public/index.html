@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#171814">
+  <title>雾灯游戏柜</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="grain"></div>
+  <header class="masthead">
+    <div class="brand">
+      <div class="brand__sigil">R</div>
+      <div><p class="eyebrow">LOCAL GAME ARCHIVE</p><h1 id="site-title">雾灯游戏柜</h1></div>
+    </div>
+    <div class="account-tools"><span id="account-role">正在验证</span><button id="open-accounts" type="button" hidden>账号管理</button><button id="logout" type="button">退出登录</button></div>
+    <div class="server-pill"><span class="server-pill__light"></span><span id="server-state">连接中</span></div>
+  </header>
+  <main>
+    <section class="hero">
+      <div>
+        <p class="hero__kicker">私有局域网 · 手机直连</p>
+        <h2>把远端游戏，<br><em>带到手边。</em></h2>
+        <p class="hero__copy">只收录你亲自选择的游戏。资源留在 NAS/本地磁盘原位置，本机只保存游戏目录记录，并把 SMB 文件实时转成手机可访问的 HTTP。</p>
+      </div>
+      <div class="hero__actions"><button class="primary-button" id="open-add">添加游戏</button><button class="primary-button primary-button--recollection" id="open-add-recollection">添加回想网页</button></div>
+    </section>
+    <nav class="library-tabs" aria-label="内容分类">
+      <button class="library-tab active" type="button" data-type="game"><span>游戏</span><b id="game-count">0</b></button>
+      <button class="library-tab" type="button" data-type="recollection"><span>网页回想室</span><b id="recollection-count">0</b></button>
+      <button class="library-tab" type="button" data-type="favorite"><span>收藏</span><b id="favorite-count">0</b></button>
+    </nav>
+    <section class="toolbar">
+      <label class="search"><span>搜索</span><input id="search" type="search" placeholder="输入游戏名" autocomplete="off"></label>
+      <label class="sort"><span>排序</span><select id="sort"><option value="added-desc">加入时间：新到旧</option><option value="added-asc">加入时间：旧到新</option><option value="overall-rating-desc">游戏评分：高到低</option><option value="overall-rating-asc">游戏评分：低到高</option><option value="my-rating-desc">我的评分：高到低</option><option value="my-rating-asc">我的评分：低到高</option></select></label>
+      <p id="summary">正在读取游戏柜…</p>
+    </section>
+    <section id="game-grid" class="game-grid" aria-live="polite"></section>
+    <nav id="pagination" class="pagination" aria-label="列表分页">
+      <label>每页 <select id="page-size"><option value="10">10</option><option value="30" selected>30</option><option value="50">50</option></select> 项</label>
+      <button id="page-prev" type="button">上一页</button><div id="page-numbers" class="pagination__numbers"></div><span id="page-status" class="pagination__status">第 1 / 1 页</span><button id="page-next" type="button">下一页</button>
+      <label class="pagination__jump">跳到 <input id="page-jump" type="number" min="1" inputmode="numeric" aria-label="输入页码"> 页 <button id="page-jump-button" type="button">前往</button></label>
+    </nav>
+    <section id="empty" class="empty" hidden>
+      <span class="empty__number">00</span><h3>游戏柜还是空的</h3><p>点击“添加游戏”，输入 SMB 地址或逐级选择目录。系统不会扫描并自动收录整个游戏库。</p>
+    </section>
+  </main>
+
+  <dialog id="add-dialog" class="modal">
+    <form method="dialog" class="modal__shell" id="add-form">
+      <header><div><p class="eyebrow" id="add-eyebrow">CURATE THE SHELF</p><h2 id="add-heading">添加一个游戏</h2></div><button class="icon-button" value="cancel" aria-label="关闭">关闭</button></header>
+      <input type="hidden" id="entry-type" value="game">
+      <div class="field"><label for="source-path" id="source-label">游戏目录</label><div class="path-row"><input id="source-path" name="sourcePath" required placeholder="C:\Games\游戏目录 或 \\NAS\共享\游戏目录"><button type="button" class="secondary-button" id="browse-path">选择目录</button></div><small id="source-help">支持本地磁盘与 SMB/UNC 任意地址：RPG Maker 网页目录（index.html / www/index.html）与 KRKR/Kirikiri 2 游戏目录（data.xp3）。游戏资源保持在原位置，只读按需加载，不复制原游戏。</small></div>
+      <div class="field"><label for="game-title">显示名称 <span>可选</span></label><input id="game-title" name="title" placeholder="留空时从网页标题读取"></div>
+      <fieldset id="launcher-field" class="launcher-field" hidden><legend>启动器 / 语言版本</legend><div id="launcher-options" class="launcher-options"></div><small>网页模式不会直接运行 EXE；支持的语言启动器会作为只读覆盖层加载，NAS 原文件不会修改。</small></fieldset>
+      <div id="browser" class="browser" hidden><div class="browser__head"><button type="button" id="browser-up">上一级</button><code id="browser-current"></code></div><div class="browser__tools"><label><input type="checkbox" id="browse-hide-added" checked> 隐藏已添加</label><label>排序 <select id="browse-sort"><option value="modified-desc">最新修改</option><option value="modified-asc">最早修改</option><option value="name-asc">名称</option></select></label><span id="browse-count"></span><button type="button" class="secondary-button" id="batch-import">批量添加当前目录内游戏</button></div><div id="browser-list" class="browser__list"></div></div>
+      <p id="form-message" class="form-message"></p>
+      <footer><button value="cancel" class="text-button">取消</button><button type="submit" class="primary-button" id="add-submit">添加为在线游戏</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="cover-dialog" class="modal cover-modal">
+    <div class="modal__shell">
+      <header><div><p class="eyebrow">SELECT ARTWORK</p><h2>更改封面</h2></div><button class="icon-button" id="close-cover" aria-label="关闭">关闭</button></header>
+      <p class="cover-note">已自动查找标题图、封面、图标和图片目录；RPG Maker 加密图片会在读取时即时解密，不写入本机磁盘。</p>
+      <div id="cover-list" class="cover-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="launcher-dialog" class="modal launcher-modal">
+    <form method="dialog" class="modal__shell" id="launcher-form">
+      <header><div><p class="eyebrow">SELECT LAUNCHER</p><h2>选择启动器</h2></div><button class="icon-button" value="cancel" aria-label="关闭">关闭</button></header>
+      <p class="cover-note" id="launcher-note">选择网页模式使用的语言版本。首次切换封装启动器时需要准备本地只读覆盖层。</p>
+      <div id="launcher-manage-options" class="launcher-options"></div>
+      <p id="launcher-message" class="form-message"></p>
+      <footer><button value="cancel" class="text-button">取消</button><button type="submit" class="primary-button" id="launcher-submit">应用启动器</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="translation-dialog" class="modal launcher-modal">
+    <form method="dialog" class="modal__shell" id="translation-form">
+      <header><div><p class="eyebrow">SELECT TRANSLATION</p><h2>选择翻译文件</h2></div><button class="icon-button" value="cancel" aria-label="关闭">关闭</button></header>
+      <p class="cover-note">只列出游戏根目录中能解析为翻译映射的 JSON/JSONY；选择结果会保留，刷新不会重新覆盖。</p>
+      <div id="translation-options" class="launcher-options"></div>
+      <p id="translation-message" class="form-message"></p>
+      <footer><button value="cancel" class="text-button">取消</button><button type="submit" class="primary-button" id="translation-submit">应用翻译文件</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="notice-dialog" class="modal notice-modal">
+    <form method="dialog" class="modal__shell" id="notice-form">
+      <header><div><p class="eyebrow">GAME NOTICE</p><h2>管理员留言</h2></div><button class="icon-button notice-close" value="cancel" aria-label="关闭留言编辑">×</button></header>
+      <p class="cover-note">游戏加载完成后会自动向用户显示一次；关闭后仍可通过右上角“查看公告”反复查看。</p>
+      <div class="field notice-field"><label for="notice-text" id="notice-game-title"></label><textarea id="notice-text" maxlength="2000" rows="8" placeholder="例如：进入标题画面后选择“回想室”；手机请保持横屏。"></textarea><small id="notice-count">0 / 2000</small></div>
+      <p id="notice-message" class="form-message" role="status"></p>
+      <footer><button type="button" class="text-button notice-clear" id="clear-notice">清除留言</button><span><button value="cancel" class="text-button">取消</button><button type="submit" class="primary-button" id="notice-submit">保存留言</button></span></footer>
+    </form>
+  </dialog>
+
+  <dialog id="account-dialog" class="modal account-modal">
+    <div class="modal__shell">
+      <header><div><p class="eyebrow">ACCOUNT ADMINISTRATION</p><h2>账号管理</h2></div><button class="icon-button" id="close-accounts" aria-label="关闭">关闭</button></header>
+      <p class="cover-note">这里只管理注册账号。删除账号后，该账号的个人评分也会一并删除；管理员账号不在此列表中。</p>
+      <form id="registration-mode-form" class="guest-password-form">
+        <h3>注册方式</h3>
+        <p>开放注册会立即创建账号；审核注册需管理员批准；关闭注册时禁止提交新申请。</p>
+        <div class="registration-mode-options"><label><input type="radio" name="mode" value="open"> 开放注册</label><label><input type="radio" name="mode" value="approval"> 审核注册</label><label><input type="radio" name="mode" value="closed"> 关闭注册</label><button type="submit" class="small-button">保存模式</button></div>
+        <p id="registration-mode-message" class="form-message" role="status"></p>
+      </form>
+      <form id="guest-password-form" class="guest-password-form">
+        <h3>修改游客访问密码</h3>
+        <p>保存后，当前所有游客会话立即失效，需要使用新密码重新进入。</p>
+        <div class="guest-password-fields"><label>新密码<input name="password" type="password" autocomplete="new-password" maxlength="128" required></label><label>确认新密码<input name="confirmPassword" type="password" autocomplete="new-password" maxlength="128" required></label><button type="submit" class="small-button">保存密码</button></div>
+        <p id="guest-password-message" class="form-message" role="status"></p>
+      </form>
+      <h3 class="account-list-title">待审核申请</h3>
+      <div id="pending-account-list" class="account-list"></div>
+      <h3 class="account-list-title">注册账号</h3>
+      <div id="account-list" class="account-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="comment-dialog" class="modal comment-modal">
+    <div class="modal__shell">
+      <header><div><p class="eyebrow">GAME COMMENTS</p><h2 id="comment-game-title">游戏评论</h2></div><button class="icon-button" id="close-comments" aria-label="关闭评论">×</button></header>
+      <div id="comment-list" class="comment-list"></div>
+      <form id="comment-form" class="comment-form" hidden>
+        <label for="comment-text">我的评论</label><textarea id="comment-text" maxlength="1000" rows="5" placeholder="写下你的游玩体验……"></textarea><small id="comment-count">0 / 1000</small>
+        <p id="comment-message" class="form-message" role="status"></p><footer><button type="button" class="text-button danger" id="delete-comment">删除我的评论</button><button type="submit" class="primary-button">发表 / 更新评论</button></footer>
+      </form>
+      <p id="comment-guest-note" class="cover-note">游客可以阅读评论；注册并登录后可以发表。</p>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/config.js"></script><script type="module" src="/app.js"></script>
+</body>
+</html>

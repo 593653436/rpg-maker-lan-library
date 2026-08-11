@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#090b0b">
+  <title>雾灯游戏模式</title>
+  <link rel="stylesheet" href="/player.css">
+</head>
+<body>
+  <main class="player-shell">
+    <canvas id="mkxp-canvas" hidden style="width:100%;height:100%;display:none"></canvas>
+    <iframe id="game-frame" title="RPG Maker 游戏" allow="autoplay; fullscreen" allowfullscreen></iframe>
+    <section id="loading-panel" class="loading-panel" role="status" aria-live="polite">
+      <div class="loading-card">
+        <div class="loading-card__head"><span>正在加载启动资源</span><strong id="loading-percent">准备中</strong></div>
+        <progress id="loading-progress" max="100" value="0"></progress>
+        <div class="loading-stats"><span id="loading-size">正在建立连接</span><span id="loading-speed">速率：计算中</span></div>
+        <div class="loading-stats"><span id="loading-resources">资源：0 / 0</span><span id="loading-remaining">剩余时间：计算中</span></div>
+        <p id="loading-status">大型游戏在弱 Wi-Fi 下可能需要几分钟，请保持页面打开。</p>
+        <div class="loading-actions"><button id="copy-diagnostics" class="loading-reload" type="button">导出日志</button><button id="reload-game" class="loading-reload" type="button" hidden>重新连接并继续加载</button></div>
+      </div>
+    </section>
+    <button id="tool-drawer-toggle" class="tool-drawer-toggle" type="button" aria-label="展开工具栏" aria-expanded="false" title="工具栏"><span class="tool-drawer-toggle__icon">☰</span></button>
+    <div class="top-tools" id="top-tools">
+      <button id="back" class="tool-button" type="button">返回游戏柜</button>
+      <div class="top-tools__right">
+        <button id="view-notice" class="tool-button tool-button--notice" type="button" hidden>查看公告</button>
+        <button id="export-logs" class="tool-button tool-button--log" type="button">导出日志</button>
+        <button id="edit" class="tool-button" type="button">按键设置</button>
+        <button id="clear-save-cache" class="tool-button" type="button">清除存档缓存</button>
+        <button id="clear-browser-cache" class="tool-button" type="button">清除浏览器缓存</button>
+        <button id="fullscreen" class="tool-button" type="button">全屏</button>
+        <button id="hide" class="tool-button" type="button">隐藏按键</button>
+      </div>
+    </div>
+    <section id="virtual-pad" class="virtual-pad" aria-label="虚拟键盘">
+      <div id="left-pad" class="pad-cluster pad-cluster--left" aria-label="左手按键"></div>
+      <div id="right-pad" class="pad-cluster pad-cluster--right" aria-label="右手按键"></div>
+    </section>
+    <div id="rotate-hint" class="rotate-hint">请将手机横屏游玩</div>
+  </main>
+
+  <dialog id="game-notice-dialog" class="game-notice-dialog" aria-labelledby="game-notice-title">
+    <article class="game-notice-card">
+      <header><div><span>GAME NOTICE</span><h1 id="game-notice-title">管理员公告</h1></div><button id="close-game-notice" type="button" aria-label="关闭公告">×</button></header>
+      <p id="game-notice-content"></p>
+      <footer><button id="confirm-game-notice" type="button">知道了</button></footer>
+    </article>
+  </dialog>
+
+  <dialog id="save-registration-dialog" class="game-notice-dialog" aria-labelledby="save-registration-title">
+    <article class="game-notice-card">
+      <header><div><span>READ-ONLY SAVE</span><h1 id="save-registration-title">游客模式不能保存</h1></div><button id="save-register-later" type="button" aria-label="关闭提示">×</button></header>
+      <p>游客可以读取 NAS 上的默认存档和回想解锁，但不能保存、覆盖或删除。注册并登录后，你的进度会独立保存在服务器，不会修改 NAS 原文件。</p>
+      <footer><button id="save-register-now" type="button">退出游客并注册</button></footer>
+    </article>
+  </dialog>
+
+  <dialog id="key-dialog" class="key-dialog">
+    <form method="dialog" class="key-editor">
+      <header><div><span>虚拟键盘</span><h1>自定义按键</h1></div><button value="cancel" aria-label="关闭">关闭</button></header>
+      <p>点击一个键位，然后选择发送给游戏的键盘按键。设置只保存在当前浏览器。</p>
+      <div id="key-list" class="key-list"></div>
+      <footer><button id="reset" type="button">恢复默认</button><button value="save" class="primary">保存设置</button></footer>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/diagnostics-recorder.js" data-mist-scope="player"></script>
+  <script src="/log-export.js"></script>
+  <script src="/player.js" type="module"></script>
+</body>
+</html>
