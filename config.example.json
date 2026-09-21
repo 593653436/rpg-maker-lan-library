@@ -7,6 +7,8 @@
   "dataDir": "./data",
   "siteTitle": "RPG Maker LAN Library",
   "rtpRoot": "./RPGRTP",
+  "ffmpegPath": "",
+  "maxTextureSize": 4096,
   "https": {
     "enabled": false,
     "port": 8788,
