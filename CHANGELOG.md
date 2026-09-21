@@ -2,6 +2,22 @@
 
 本文遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号遵循语义化版本。
 
+## [1.3.0] - 2026-09-21
+
+### Added
+
+- **动态纹理上限**：按客户端实测 WebGL 上限（页面探针写 cookie；移动 UA 兜底 4096、桌面兜底 16384）决定是否降采样，桌面不再被固定 4096 误缩。
+- **spine 图集配套缩放**：`.atlas` 的坐标与超限 PNG 成对等比缩放（布局数学不变、帧不越界），修复移动端大贴图黑块与桌面端帧越界报错；`serveAtlasCompat` + 纯函数 `scaleAtlasText`/`atlasScaleFor`（含合成回归测试）。
+- **FMOO_ProSave 存档解包**：桥检测 `@@__FMOO_PROSAVE__@@` 前缀后经服务端 `zlib` 端点返回明文 JSON（浏览器侧保持标准格式写回，两端互读）。
+- **F_ 系 Movie 插件浏览器化**：NW.js 门卫中和 + 自动播放静音重试（`Movie:'movie-browser-1'` 版本化路径）。
+- **`?mistprobe=1` 真实存在性路由** 与 `fileExistsGuard` 指纹规则（解释器条件命令的 `require('fs').existsSync` 浏览器化，含分支语义还原）。
+
+### Changed
+
+- **插件版本标记从查询串改为路径段**：`js/plugins/.mistv/<version>/<name>.js`——保持缓存击穿能力的同时让插件文件名保持干净，修复 `document.currentScript` 自名推导被 `?mistv=` 破坏导致的插件命令静默失效。
+- `MoviePicture` 版本推进至 `mobile-media-5`；新增 `Movie` 条目。
+- 内容指纹表新增 `fileExistsGuard` 规则（18 规则 / 63 签名）。
+
 ## [1.2.0] - 2026-09-21
 
 ### Added
