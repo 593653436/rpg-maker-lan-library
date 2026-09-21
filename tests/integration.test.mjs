@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 
 const project=path.dirname(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(?:[A-Za-z]:)/,m=>m.slice(1))));
 const write=async(file,content)=>{await fsp.mkdir(path.dirname(file),{recursive:true});await fsp.writeFile(file,content)};
@@ -27,6 +28,7 @@ test('synthetic MV/MZ library works without real games',{skip:process.platform!=
     write(path.join(mv,'js','rpg_managers.js'),`PluginManager.makeUrl=function(filename){return "js/plugins/"+filename+".js"};`),
     write(path.join(mv,'js','plugins.js'),`var $plugins=[{"name":"AnimationByPoint","status":true,"description":"synthetic","parameters":{}}];`),
     write(path.join(mv,'js','plugins','PluginCommonBase.js'),'window.PluginManagerEx={};'),
+    write(path.join(mv,'js','plugins','Movie.js'),`if (!Utils.isNwjs()) {\n\tconsole.error(\"Movie does not supports platforms other than NW.js\");\n} else if (typeof AssetDatabaseMovie === 'undefined') {\n\tconsole.error(\"AssetDatabaseMovie not found\");\n} else {\n\tconst MovieManager = { _element: null, play() { this._element.play(); } };\n\tclass SimpleVideoBaseTexture extends PIXI.BaseTexture {}\n\tSceneManager.playMovie = function (movieId, context) { MovieManager.play(); };\n}\n`),
     write(path.join(mv,'save','AnotherNewGame.rpgsave'),'synthetic-another-new-game'),
     write(path.join(mv,'save','global.rpgsave'),'synthetic-global')
   ]);
@@ -45,6 +47,24 @@ test('synthetic MV/MZ library works without real games',{skip:process.platform!=
     const mvBridge=await fetch(`${base}/mv-save-bridge/${mvGame.id}.js`,{headers}).then(r=>r.text());assert.match(mvBridge,/n===-1001\?'anotherNewGame'/);
     const rejected=await fetch(`${base}/api/game-saves/${mvGame.id}/arbitrary`,{headers});assert.equal(rejected.status,400);
     const plugins=await fetch(`${base}/games/${mvGame.id}/js/plugins.js`,{headers}).then(r=>r.text());assert.match(plugins,/PluginCommonBase/);
+    // FMOO 存档：服务端解包端点（合成 ProSave 格式）
+    const proSave = '@@__FMOO_PROSAVE__@@' + zlib.deflateRawSync(Buffer.from('{"system":{"x":1}}')).toString('base64');
+    const unwrapped = await fetch(base+'/api/mv-prosave-unwrap',{method:'POST',headers:{...headers,'content-type':'text/plain;charset=UTF-8'},body:proSave});
+    assert.equal(unwrapped.status,200);assert.equal(await unwrapped.text(),'{"system":{"x":1}}');
+    const notProSave = await fetch(base+'/api/mv-prosave-unwrap',{method:'POST',headers,body:'hello'});
+    assert.equal(notProSave.status,400);
+    const mvSaveBridge2=await fetch(`${base}/mv-save-bridge/${mvGame.id}.js`,{headers}).then(r=>r.text());assert.match(mvSaveBridge2,/mv-prosave-unwrap/);
+    // Movie.js（F_ 系）：NW 门卫中和 + 自动播放重试；版本段路径同源同内容
+    const moviePatched=await fetch(`${base}/games/${mvGame.id}/js/plugins/Movie.js`,{headers}).then(r=>r.text());
+    assert.match(moviePatched,/mist: browser-enabled/);assert.match(moviePatched,/NotAllowedError/);assert.match(moviePatched,/SceneManager\.playMovie/);
+    const movieVersioned=await fetch(`${base}/games/${mvGame.id}/js/plugins/.mistv/movie-browser-1/Movie.js`,{headers}).then(r=>r.text());
+    assert.equal(movieVersioned,moviePatched);
+    const mvManagers=await fetch(`${base}/games/${mvGame.id}/js/rpg_managers.js`,{headers}).then(r=>r.text());
+    assert.match(mvManagers,/Movie:'movie-browser-1'/);assert.match(mvManagers,/\.mistv\/'\+version/);
+    // MZ 游戏首页注入纹理上限探针；mistprobe 路由返回真实存在性
+    const mzIndex2=await fetch(`${base}/games/${mzGame.id}/`,{headers}).then(r=>r.text());assert.match(mzIndex2,/mistmts/);
+    const probeHit=await fetch(`${base}/games/${mvGame.id}/js/plugins.js?mistprobe=1`,{headers});assert.equal(probeHit.status,200);
+    const probeMiss=await fetch(`${base}/games/${mvGame.id}/js/nope.js?mistprobe=1`,{headers});assert.equal(probeMiss.status,404);
     // 任意路径浏览：sourceRoot 之外的本地路径（os.tmpdir）应可浏览并提供上级目录
     const outside=os.tmpdir();
     const browseOut=await fetch(base+'/api/browse?type=game&path='+encodeURIComponent(outside),{headers}).then(r=>r.json());

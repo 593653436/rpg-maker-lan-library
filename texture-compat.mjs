@@ -88,3 +88,84 @@ export function decryptRpgPngForTest(encrypted, key) {
   for (let i = 0; i < 16 && i < body.length; i++) body[i] ^= key[i];
   return body;
 }
+
+// ── spine .atlas 坐标等比缩放（与 downscalePng 配套，服务端与小纹理上限客户端一致）──
+// 与 pixi-spine 解析器语义对齐（已对源验证）：
+//   - size 存储的是"逻辑（未旋转、含裁剪）尺寸"；(x,y) 与 swap 后的帧为图集空间像素
+//   - rotate=true 时帧为 (x, y, size1, size0)，即 x 向 extent = size1、y 向 extent = size0
+//   - updateOffset 的布局数学为 this.w/orig.w、region.w/orig.w 等比例式：orig/offset/宽高
+//     全部按同一比例缩放后，比例不变 → 布局完全不变，只是纹理像素变软（等比缩）。
+// pageScales: { 'CG3.png': { scale, width, height } }（width/height 为缩后像素尺寸）
+export function atlasScaleFor(width, height, maxSize) {
+  if (width <= maxSize && height <= maxSize) return null;
+  const scale = Math.min(maxSize / width, maxSize / height);
+  return { scale, width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+}
+
+function scaleRegionLines(lines, sc) {
+  const get = (re) => { for (const l of lines) { const m = l.match(re); if (m) return m; } return null; };
+  const rotM = get(/^\s*rotate\s*:\s*(.+?)\s*$/i);
+  const xyM = get(/^\s*xy\s*:\s*(\d+)\s*,\s*(\d+)/i);
+  const sizeM = get(/^\s*size\s*:\s*(\d+)\s*,\s*(\d+)/i);
+  const origM = get(/^\s*orig\s*:\s*(\d+)\s*,\s*(\d+)/i);
+  const offM = get(/^\s*offset\s*:\s*(\d+)\s*,\s*(\d+)/i);
+  if (!rotM || !xyM || !sizeM) return lines;
+  const rv = rotM[1].toLowerCase();
+  const rotate = rv === 'true' ? true : rv === 'false' ? false : ((720 - parseFloat(rv)) % 360) / 45 % 4 !== 0;
+  const s = sc.scale, nw = sc.width, nh = sc.height;
+  const q = (v) => Math.max(0, Math.round(v * s));
+  let size0 = Math.max(1, q(parseInt(sizeM[1], 10)));
+  let size1 = Math.max(1, q(parseInt(sizeM[2], 10)));
+  let extW = rotate ? size1 : size0; // 图集空间 x 向 extent
+  let extH = rotate ? size0 : size1;
+  let x = Math.min(q(parseInt(xyM[1], 10)), Math.max(0, nw - extW));
+  let y = Math.min(q(parseInt(xyM[2], 10)), Math.max(0, nh - extH));
+  if (x < 0) x = 0; if (y < 0) y = 0;
+  extW = Math.max(1, Math.min(extW, nw - x));
+  extH = Math.max(1, Math.min(extH, nh - y));
+  size0 = rotate ? extH : extW;
+  size1 = rotate ? extW : extH;
+  const ow = origM ? Math.max(1, q(parseInt(origM[1], 10))) : null;
+  const oh = origM ? Math.max(1, q(parseInt(origM[2], 10))) : null;
+  const ox = offM ? q(parseInt(offM[1], 10)) : null;
+  const oy = offM ? q(parseInt(offM[2], 10)) : null;
+  return lines.map((l) => {
+    let m;
+    if ((m = l.match(/^(\s*xy\s*:\s*)\d+\s*,\s*\d+/i))) return m[1] + x + ', ' + y;
+    if ((m = l.match(/^(\s*size\s*:\s*)\d+\s*,\s*\d+/i))) return m[1] + size0 + ', ' + size1;
+    if (ow !== null && (m = l.match(/^(\s*orig\s*:\s*)\d+\s*,\s*\d+/i))) return m[1] + ow + ', ' + oh;
+    if (ox !== null && (m = l.match(/^(\s*offset\s*:\s*)\d+\s*,\s*\d+/i))) return m[1] + ox + ', ' + oy;
+    return l;
+  });
+}
+
+export function scaleAtlasText(text, pageScales) {
+  const nl = text.includes('\r\n') ? '\r\n' : '\n';
+  const src = text.split(/\r?\n/);
+  const out = [];
+  let sc = null;      // 当前页缩放参数或 null
+  let buf = null;     // 区域块缓冲
+  const isPageName = (t) => /\.(png|jpe?g|webp)$/i.test(t);
+  const isOption = (t) => /^(size|format|filter|repeat|pma)\s*:/i.test(t);
+  const flush = () => {
+    if (buf === null) return;
+    out.push(...(sc ? scaleRegionLines(buf, sc) : buf));
+    buf = null;
+  };
+  for (const line of src) {
+    const t = line.trim();
+    if (t === '') { flush(); sc = null; out.push(line); continue; }
+    const indented = /^\s/.test(line);
+    if (indented) {
+      if (buf !== null) buf.push(line); else out.push(line);
+      continue;
+    }
+    flush();
+    if (isPageName(t)) { sc = pageScales[t] || null; out.push(line); }
+    else if (sc && /^size\s*:/i.test(t)) out.push('size: ' + sc.width + ', ' + sc.height);
+    else if (isOption(t)) out.push(line);
+    else buf = [line]; // 区域名行
+  }
+  flush();
+  return out.join(nl);
+}
