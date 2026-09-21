@@ -1,7 +1,7 @@
 // 兼容规则内容指纹表（由 scripts/gen-compat-signatures.mjs 生成，勿手改）。
 // 值 = 游戏 index.html + js/main.js 的 SHA-256（带长度分隔）；任何用户导入同一版本游戏即命中。
 export const COMPAT_SIGNATURES = {
-  /* 16 rules */
+  /* 17 rules */
   "fossil": [
     "sha256:9221df70bcb4b58dcabacc30119098660073b83a4c3a060ea569d23cbf0875f5"
   ],
@@ -34,7 +34,11 @@ export const COMPAT_SIGNATURES = {
     "sha256:c634f266be3547e4711f926b4290791e024d1da4c978899ba1c9b198b6a79168"
   ],
   "steamworks": [
+    "sha256:475c0da7aff36b66882f2a9958fb53adbb3240cb906e23058ce07c024a4f8ba6",
     "sha256:97b3f96f18cbb98c35fb478841eff9cc822a571c185d7168b679666f61b89e6c"
+  ],
+  "xyouRoom": [
+    "sha256:8ca45c318ebb73c076cc3d4e4b62d943aa6bfc500bdb275d6f05038941a1612a"
   ],
   "nupu": [
     "sha256:80f5528c5f043e5e07bdd062fe546cf59caf82c48a3ff95b42edf024b4923161",

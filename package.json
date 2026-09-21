@@ -27,5 +27,8 @@
     "game-streaming",
     "save-sync"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pngjs": "^7.0.0"
+  }
 }
