@@ -45,3 +45,17 @@ test('makeUrl 分支（MZ）：版本段路径、文件名保持干净、无查�
   }
   assert.match(mzCalls[0], /^js\/plugins\/\.mistv\/[^/]+\/[^/]+\.js$/);
 });
+
+test('新增版本条目：CGMZ_SplashScreen / Sakura_MapNameExtend / SoR_DataNoteExtension_MZ', () => {
+  const mzCalls = [];
+  const mz = { PluginManager: { makeUrl(name) { return 'js/plugins/' + encodeURIComponent(name) + '.js'; }, loadScript(name) { mzCalls.push(this.makeUrl(name)); } } };
+  vm.createContext(mz); vm.runInContext(compat, mz);
+  mz.PluginManager.loadScript('CGMZ_SplashScreen');
+  mz.PluginManager.loadScript('Sakura_MapNameExtend');
+  mz.PluginManager.loadScript('SoR_DataNoteExtension_MZ');
+  assert.deepEqual(mzCalls, [
+    'js/plugins/.mistv/cyclone-steam-1/CGMZ_SplashScreen.js',
+    'js/plugins/.mistv/mapname-1/Sakura_MapNameExtend.js',
+    'js/plugins/.mistv/sornote-1/SoR_DataNoteExtension_MZ.js'
+  ]);
+});

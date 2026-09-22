@@ -81,7 +81,9 @@ async function compatMatches(game,key){
 }
 const MAX_BODY = 1024 * 1024;
 const MAX_SAVE_BODY = 10 * 1024 * 1024;
-const SAVE_NAME = /^(global|config|common|shared|uta_common|rngd_recomode_switch|ntretdRecoUnlock|anotherNewGame|achievement[s]?|titleInfo|GlobalData|drill_global|drill_timer|file\d+|autosave|MAkaisouSlumguide|saveimg\d+)$/;
+// mist: knsGlobalInfo = KNS_GlobalInfo 插件（愛と平和の魔法少女ローゼリーフ 等 KNS 系游戏）每局必写的
+// 全局旗标档；不在白名单时写档被 400 拒绝 → 游戏侧 onReject 停主循环 → 启动闪屏冻结黑屏（2026-09）。
+const SAVE_NAME = /^(global|config|common|shared|uta_common|rngd_recomode_switch|ntretdRecoUnlock|anotherNewGame|achievement[s]?|titleInfo|GlobalData|drill_global|drill_timer|gameEnd|gameRecall|gameCloth|trueEnd|file\d+|autosave|MAkaisouSlumguide|knsGlobalInfo|saveimg\d+)$/;
 const RGSS3_SAVE_NAME = /^(?:Save\d{2,3}|QuickSave|PublicData|WindowSize)$/;
 const RPG_HEADER = Buffer.from('5250474d560000000003010000000000','hex');
 const PNG_HEADER = Buffer.from('89504e470d0a1a0a0000000d49484452','hex');
@@ -230,7 +232,7 @@ async function listSaves(gameRoot,gameId,user) {
   const locations=[[meta.dir,'source-readonly']];if(canWriteGameSaves(user))locations.push([path.join(USER_SAVE_DIR,gameSaveUserKey(user),gameId),'user-local']);
   for(const [dir,location] of locations){
     const entries=await fsp.readdir(dir,{withFileTypes:true}).catch(()=>[]);
-    for(const e of entries){const m=/^(global|config|common|shared|uta_common|rngd_recomode_switch|ntretdRecoUnlock|anotherNewGame|achievement[s]?|titleInfo|GlobalData|drill_global|drill_timer|file\d+|autosave|MAkaisouSlumguide|saveimg\d+)\.(rmmzsave|rpgsave)$/i.exec(e.name);if(!e.isFile()||!m||path.extname(e.name).toLowerCase()!==meta.ext)continue;const stat=await fsp.stat(path.join(dir,e.name)),lower=m[1].toLowerCase(),name=lower==='titleinfo'?'titleInfo':lower==='anothernewgame'?'anotherNewGame':m[1];merged.set(name,{name,bytes:stat.size,updatedAt:stat.mtime.toISOString(),location})}
+    for(const e of entries){const m=/^(global|config|common|shared|uta_common|rngd_recomode_switch|ntretdRecoUnlock|anotherNewGame|achievement[s]?|titleInfo|GlobalData|drill_global|drill_timer|gameEnd|gameRecall|gameCloth|trueEnd|file\d+|autosave|MAkaisouSlumguide|knsGlobalInfo|saveimg\d+)\.(rmmzsave|rpgsave)$/i.exec(e.name);if(!e.isFile()||!m||path.extname(e.name).toLowerCase()!==meta.ext)continue;const stat=await fsp.stat(path.join(dir,e.name)),lower=m[1].toLowerCase(),name=lower==='titleinfo'?'titleInfo':lower==='anothernewgame'?'anotherNewGame':m[1];merged.set(name,{name,bytes:stat.size,updatedAt:stat.mtime.toISOString(),location})}
   }
   return {engine:meta.engine,extension:meta.ext,canSave:canWriteGameSaves(user),saves:[...merged.values()].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}))};
 }
@@ -328,7 +330,7 @@ function mvSaveBridge(gameId) {
 }
 function saveBridge(gameId) {
   const base=`/api/game-saves/${gameId}`;
-  return `(() => {\n  const base=${JSON.stringify(base)};\n  let names=new Set(),installed=false,canSave=true;\n  const notifyReadonly=()=>{try{window.parent&&window.parent.postMessage({type:'mist-save-registration-required'},'*')}catch{}};\n  const ready=fetch(base,{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('存档列表读取失败');return r.json()}).then(d=>{canSave=d.canSave!==false;names=new Set(d.saves.map(x=>x.name))});\n  const decode=buffer=>new TextDecoder().decode(buffer);\n  const encode=text=>new TextEncoder().encode(text);\n  const convert=typeof Fossil!=='undefined'&&typeof Fossil.convertFileIdToFileNameIfItWasNotPassedInRight==='function'?name=>{try{return Fossil.convertFileIdToFileNameIfItWasNotPassedInRight(name)}catch(e){return name}}:name=>name;\n  function install(force){\n    if((installed&&!force)||typeof StorageManager==='undefined')return; installed=true;\n    StorageManager.saveZip=async function(name,zip){name=convert(name);await ready;if(!canSave){notifyReadonly();throw new Error('游客只能读取 NAS 存档，请注册后保存独立进度')}const r=await fetch(base+'/'+encodeURIComponent(name),{method:'PUT',headers:{'Content-Type':'application/octet-stream'},body:encode(zip)});if(!r.ok)throw new Error(await r.text());names.add(name)};StorageManager.saveZip.__mistBridge=true;\n    StorageManager.loadZip=async function(name){name=convert(name);await ready;const r=await fetch(base+'/'+encodeURIComponent(name),{cache:'no-store'});if(r.status===404)return null;if(!r.ok)throw new Error(await r.text());return decode(await r.arrayBuffer())};StorageManager.loadZip.__mistBridge=true;\n    StorageManager.exists=function(name){name=convert(name);return names.has(name)};StorageManager.exists.__mistBridge=true;\n    StorageManager.remove=async function(name){name=convert(name);await ready;if(!canSave){notifyReadonly();throw new Error('游客不能删除 NAS 存档，请注册后管理独立进度')}const r=await fetch(base+'/'+encodeURIComponent(name),{method:'DELETE'});if(!r.ok)throw new Error(await r.text());names.delete(name)};StorageManager.remove.__mistBridge=true;\n    window.__mistClearSaveCache=async function(){try{await localforage.clear()}catch{}for(const key of Object.keys(localStorage)){if(/^rmmzsave[.:]/i.test(key))localStorage.removeItem(key)}return true};\n    ready.then(()=>console.info('[雾灯存档] 已连接 SMB 存档，共 '+names.size+' 个')).catch(e=>console.error('[雾灯存档]',e));\n  }\n  window.__mistSaveInstall=install;\n  window.addEventListener('load',install,{once:true});\n})();`;
+  return `(() => {\n  const base=${JSON.stringify(base)};\n  let names=new Set(),installed=false,canSave=true;\n  const berr=m=>{const e=new Error(m);e.__mistBridge=true;return e};\n  const notifyReadonly=()=>{try{window.parent&&window.parent.postMessage({type:'mist-save-registration-required'},'*')}catch{}};\n  const ready=fetch(base,{cache:'no-store'}).then(r=>{if(!r.ok)throw berr('存档列表读取失败');return r.json()}).then(d=>{canSave=d.canSave!==false;names=new Set(d.saves.map(x=>x.name))});\n  const decode=buffer=>new TextDecoder().decode(buffer);\n  const encode=text=>new TextEncoder().encode(text);\n  const convert=typeof Fossil!=='undefined'&&typeof Fossil.convertFileIdToFileNameIfItWasNotPassedInRight==='function'?name=>{try{return Fossil.convertFileIdToFileNameIfItWasNotPassedInRight(name)}catch(e){return name}}:name=>name;\n  function install(force){\n    if((installed&&!force)||typeof StorageManager==='undefined')return; installed=true;\n    StorageManager.saveZip=async function(name,zip){name=convert(name);await ready;if(!canSave){notifyReadonly();throw berr('游客只能读取 NAS 存档，请注册后保存独立进度')}const r=await fetch(base+'/'+encodeURIComponent(name),{method:'PUT',headers:{'Content-Type':'application/octet-stream'},body:encode(zip)});if(!r.ok)throw berr(await r.text());names.add(name)};StorageManager.saveZip.__mistBridge=true;\n    StorageManager.loadZip=async function(name){name=convert(name);await ready;const r=await fetch(base+'/'+encodeURIComponent(name),{cache:'no-store'});if(r.status===404)return null;if(!r.ok)throw berr(await r.text());return decode(await r.arrayBuffer())};StorageManager.loadZip.__mistBridge=true;\n    StorageManager.exists=function(name){name=convert(name);return names.has(name)};StorageManager.exists.__mistBridge=true;\n    StorageManager.remove=async function(name){name=convert(name);await ready;if(!canSave){notifyReadonly();throw berr('游客不能删除 NAS 存档，请注册后管理独立进度')}const r=await fetch(base+'/'+encodeURIComponent(name),{method:'DELETE'});if(!r.ok)throw berr(await r.text());names.delete(name)};StorageManager.remove.__mistBridge=true;\n    window.__mistClearSaveCache=async function(){try{await localforage.clear()}catch{}for(const key of Object.keys(localStorage)){if(/^rmmzsave[.:]/i.test(key))localStorage.removeItem(key)}return true};\n    ready.then(()=>console.info('[雾灯存档] 已连接 SMB 存档，共 '+names.size+' 个')).catch(e=>console.error('[雾灯存档]',e));\n  }\n  window.__mistSaveInstall=install;\n  window.addEventListener('load',install,{once:true});\n})();`;
 }
 function protectedMzDatabaseCompat(source,wasm){
   const signature=/DataManager\.onXhrLoad\s*=/.test(source)&&/require\s*\(\s*['"]fs['"]\s*\)/.test(source)&&/require\s*\(\s*['"]path['"]\s*\)/.test(source)&&/rmmz_core\.dat/.test(source)&&/WebAssembly\.Instance/.test(source)&&/Buffer\.from\s*\(\s*c\.data\s*,\s*['"]base64['"]\s*\)/.test(source)&&/137\s*\^\s*\(\s*t\s*&\s*255\s*\)/.test(source)&&/exports\.(?:_?process)/.test(source);
@@ -501,7 +503,7 @@ async function readTitle(root) {
 }
 async function inspectTranslation(file,name) {
   const stat=await fsp.stat(file).catch(()=>null);if(!stat?.isFile()||stat.size>20*1024*1024)return null;
-  try{const raw=JSON.parse((await fsp.readFile(file,'utf8')).replace(/^\uFEFF/,''));if(!raw||Array.isArray(raw)||typeof raw!=='object')return null;const pairs=Object.entries(raw).filter(([k,v])=>typeof k==='string'&&typeof v==='string'&&k&&v),entries=pairs.filter(([k,v])=>k!==v).length;if(pairs.length<10||entries<1)return null;return {file:name,entries,bytes:stat.size,updatedAt:stat.mtime.toISOString()}}catch{return null}
+  try{const raw=parseTranslationJson(await fsp.readFile(file,'utf8'));if(!raw||Array.isArray(raw)||typeof raw!=='object')return null;const pairs=Object.entries(raw).filter(([k,v])=>typeof k==='string'&&typeof v==='string'&&k&&v),entries=pairs.filter(([k,v])=>k!==v).length;if(pairs.length<10||entries<1)return null;return {file:name,entries,bytes:stat.size,updatedAt:stat.mtime.toISOString()}}catch{return null}
 }
 async function translationCandidates(sourceDir) {
   const entries=await fsp.readdir(sourceDir,{withFileTypes:true}).catch(()=>[]),found=[];
@@ -517,7 +519,7 @@ async function selectedTranslation(sourceDir,file) {
 }
 async function translationMap(game) {
   const source=await resolveSource(game.sourcePath),info=game.translation?.file?await selectedTranslation(source,game.translation.file).catch(()=>null):null;if(!info)return null;
-  const raw=JSON.parse((await fsp.readFile(path.join(source,info.file),'utf8')).replace(/^\uFEFF/,'')),map={};
+  const raw=parseTranslationJson(await fsp.readFile(path.join(source,info.file),'utf8')),map={};
   for(const [key,value] of Object.entries(raw))if(typeof key==='string'&&typeof value==='string'&&key&&value&&key!==value)map[key]=value;
   const extraPath=TRANSLATION_EXTRA_FILES.get(game.id);
   if(extraPath){
@@ -847,7 +849,7 @@ async function serveMoviePictureCompat(req,res,gameRoot,loadSession) {
   const close=/\}\)\(\);\s*$/.exec(patched);if(!close)return serveCompatBuffer(req,res,Buffer.from(patched),'text/javascript; charset=utf-8',relative,loadSession);const output=patched.slice(0,close.index)+compat+patched.slice(close.index);
   return serveCompatBuffer(req,res,Buffer.from(output),'text/javascript; charset=utf-8',relative,loadSession)
 }
-function pluginLoaderCompat(){return `\n;(() => {if(typeof PluginManager==='undefined'||PluginManager.__mistPluginVersions)return;const versions={Movie:'movie-browser-1',MoviePicture:'mobile-media-5',CsvAutoLoader:'csv-loader-1',CommonSave:'common-save-1',TS_ReplayMode:'replay-mode-2',TS_Decode:'scenario-decode-2',DRS_BoostEngine:'drs-boost-2',enc_lv2d:'enc-lv2d-2',villaA_AnimationTitleButtonFilter1:'villa-a-1',stwv_allDataFlag:'stwv-flag-1',FlowerCore:'flower-core-1',Wataridori_AddFileSystem:'wataridori-1',Torigoya_Achievement2:'torigoya-1',NekoGakuen_SteamworksAPI:'steamworks-2',JsScript76Set:'jsscript76-1',SRD_UltraBase:'pirate-strip-1',SaveSlotCustom:'saveslot-1'};if(typeof PluginManager.makeUrl==='function'){const originalMake=PluginManager.makeUrl;PluginManager.makeUrl=function(filename){const plain=String(filename),base=plain.endsWith('.js')?plain.slice(0,-3):plain,url=originalMake.call(this,filename),version=versions[base];return version?url.replace(/(js[/]plugins[/])([^?]*[.]js)/,'$1.mistv/'+version+'/$2'):url}}else if(typeof PluginManager.loadScript==='function'){const originalLoad=PluginManager.loadScript;PluginManager.loadScript=function(name){const plain=String(name),base=plain.endsWith('.js')?plain.slice(0,-3):plain,version=versions[base];return originalLoad.call(this,version?'.mistv/'+version+'/'+base+'.js':plain)}}PluginManager.__mistPluginVersions=true})();\n`}
+function pluginLoaderCompat(){return `\n;(() => {if(typeof PluginManager==='undefined'||PluginManager.__mistPluginVersions)return;const versions={Movie:'movie-browser-1',MoviePicture:'mobile-media-5',Sakura_MapNameExtend:'mapname-1',SoR_DataNoteExtension_MZ:'sornote-1',CsvAutoLoader:'csv-loader-1',CommonSave:'common-save-1',TS_ReplayMode:'replay-mode-2',TS_Decode:'scenario-decode-2',DRS_BoostEngine:'drs-boost-2',enc_lv2d:'enc-lv2d-2',villaA_AnimationTitleButtonFilter1:'villa-a-1',stwv_allDataFlag:'stwv-flag-1',FlowerCore:'flower-core-1',Wataridori_AddFileSystem:'wataridori-1',Torigoya_Achievement2:'torigoya-1',NekoGakuen_SteamworksAPI:'steamworks-2',JsScript76Set:'jsscript76-1',SRD_UltraBase:'pirate-strip-1',SaveSlotCustom:'saveslot-1',CGMZ_SplashScreen:'cyclone-steam-1'};if(typeof PluginManager.makeUrl==='function'){const originalMake=PluginManager.makeUrl;PluginManager.makeUrl=function(filename){const plain=String(filename),base=plain.endsWith('.js')?plain.slice(0,-3):plain,url=originalMake.call(this,filename),version=versions[base];return version?url.replace(/(js[/]plugins[/])([^?]*[.]js)/,'$1.mistv/'+version+'/$2'):url}}else if(typeof PluginManager.loadScript==='function'){const originalLoad=PluginManager.loadScript;PluginManager.loadScript=function(name){const plain=String(name),base=plain.endsWith('.js')?plain.slice(0,-3):plain,version=versions[base];return originalLoad.call(this,version?'.mistv/'+version+'/'+base+'.js':plain)}}PluginManager.__mistPluginVersions=true})();\n`}
 async function serveDrsBoostEngineCompat(req,res,gameRoot,gameId,loadSession,fileName='DRS_BoostEngine.js') {
   const relative='/js/plugins/'+fileName,file=path.join(gameRoot,...relative.slice(1).split('/')),source=await fsp.readFile(file,'utf8').catch(()=>null);
   if(source===null)return text(res,404,'文件不存在');
@@ -871,6 +873,8 @@ function legacyStringPolyfillCompat() {
 
 function cgRoomSwitchFix(){return `\n;(() => {\n  if(globalThis.__mistCgRoomFix)return;globalThis.__mistCgRoomFix=true;globalThis.__mistCgRoomFixCount=0;\n  const apply=()=>{try{if(typeof $gameMap==='undefined'||typeof $gameSwitches==='undefined'||!$gameMap||!$gameSwitches)return;if($gameMap.mapId()===3&&$gameSwitches.value(318)&&!$gameSwitches.value(316)){$gameSwitches.setValue(316,true);globalThis.__mistCgRoomFixCount++;console.info('[雾灯] CG屋修复：已补齐开关316')}}catch(e){}};\n  setInterval(apply,600);setTimeout(apply,50);\n})();\n`}
 
+const pirateStripCache=new Map();
+
 async function servePluginMarkerStripCompat(req,res,gameRoot,sub,loadSession){
   const file=safeJoin(gameRoot,sub);if(!file)return null;
   const stat=await fsp.stat(file).catch(()=>null);if(!stat?.isFile()||stat.size>4*1024*1024)return null;
@@ -885,6 +889,103 @@ async function servePluginMarkerStripCompat(req,res,gameRoot,sub,loadSession){
   if(entry===null)return null;
   return serveCompatBuffer(req,res,entry,'text/javascript; charset=utf-8',sub,loadSession);
 }
+
+function parseTranslationJson(text) {
+  const kept=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(line=>{const t=line.trimStart();return !t.startsWith('//')&&!/^\/\*.*\*\/\s*$/.test(t)});
+  return JSON.parse(kept.join('\n'));
+}
+
+function knsRejectStopGuard(source) {
+  // mist: MZ 1.5+ 核心把「未处理的 Promise 拒绝」当致命错误：onReject → onError → stop() 停主循环 + 全屏报错。
+  // 浏览器平台上，平台型异步失败（存档桥 4xx、弱网、游客只读）会被升级成“启动闪屏冻结黑屏”
+  // （愛と平和の魔法少女ローゼリーフ 案例：knsGlobalInfo 写档被 400 拒 → 游戏停在启动闪屏）。
+  // 仅拦截存档桥标记（.__mistBridge）的拒绝：console.warn、不中止游戏；游戏自身未处理拒绝维持原行为。
+  // 桌面 NW.js 不受影响（加载 NAS 原文，不经此路由注入）。
+  if (!/SceneManager\.onReject\s*=\s*function/.test(source)) return '';
+  if (!source.includes('event.message = event.reason')) return '';
+  if (!/SceneManager\.onError\s*=\s*function[\s\S]{0,600}?this\.stop\(\)/.test(source)) return '';
+  return `\n;(() => { if(!globalThis.SceneManager || SceneManager.__mistRejectGuard) return; SceneManager.__mistRejectGuard = true;\n  const origReject = SceneManager.onReject;\n  SceneManager.onReject = function(event) { try { const r = event && event.reason; if (r && r.__mistBridge) { console.warn('[雾灯兼容] 已拦截存档桥 Promise 拒绝（浏览器平台不中止游戏）:', r && r.message); return; } } catch (e) {} try { origReject.call(this, event); } catch (e) {} };\n})();\n`;
+}
+
+function mzLocalFileWebNoopCompat(source) {
+  const re=/(StorageManager\.saveToLocalFile = function\(saveName, zip\) \{)(\r?\n)(    const dirPath = this\.fileDirectoryPath\(\);)/;
+  if(!re.test(source))return source;
+  return source.replace(re,(m,a,nl,b)=>a+nl+'    if (typeof require !== \"function\") { return Promise.resolve(); } // mist: 浏览器无本地文件系统，静默成功'+nl+b);
+}
+
+function audioNullSaveCompat(source) {
+  const playBgm=/(AudioManager\.playBgm = function\(bgm, pos\) \{)(\r?\n)(    if \(this\.isCurrentBgm\(bgm\)\) \{)/;
+  const playBgs=/(AudioManager\.playBgs = function\(bgs, pos\) \{)(\r?\n)(    if \(this\.isCurrentBgs\(bgs\)\) \{)/;
+  let output=source;
+  if(playBgm.test(output))output=output.replace(playBgm,(m,a,nl,b)=>a+nl+'    if (!bgm) { this.stopBgm(); this._currentBgm = null; return; } /* mist: null 存档安全 */'+nl+b);
+  if(playBgs.test(output))output=output.replace(playBgs,(m,a,nl,b)=>a+nl+'    if (!bgs) { this.stopBgs(); this._currentBgs = null; return; } /* mist: null 存档安全 */'+nl+b);
+  if(output!==source)console.log('[雾灯兼容] rpg_managers.js 音频 null 存档安全守卫已注入');
+  return output;
+}
+
+async function serveCycloneSplashCompat(req,res,gameRoot,loadSession) {
+  const relative='/js/plugins/CGMZ_SplashScreen.js',file=path.join(gameRoot,'js','plugins','CGMZ_SplashScreen.js'),source=await fsp.readFile(file,'utf8').catch(()=>null);
+  if(source===null)return text(res,404,'文件不存在');
+  const hasGate=/!CycloneSteam\.isSubscribedApp\(\s*\d+\s*\)/.test(source);
+  const output=hasGate?source.replace(/!CycloneSteam\.isSubscribedApp\(\s*\d+\s*\)/g,'false'):source;
+  if(hasGate)console.log('[雾灯插件净化] CGMZ_SplashScreen Steam 订阅门卫已中和');
+  return serveCompatBuffer(req,res,Buffer.from(output),'text/javascript; charset=utf-8',relative,loadSession)
+}
+
+async function serveSakuraMapNameCompat(req,res,gameRoot,loadSession) {
+  const relative='/js/plugins/Sakura_MapNameExtend.js',file=path.join(gameRoot,'js','plugins','Sakura_MapNameExtend.js');
+  const source=await fsp.readFile(file,'utf8').catch(()=>null);
+  if(source===null)return text(res,404,'文件不存在');
+  const fsDecl="  const fs = require('fs');",pathDecl="  const path = require('path');";
+  const baseFn="  const getBasePath = () => path.dirname(process.mainModule.filename);";
+  if(!source.includes(fsDecl)||!source.includes(pathDecl)||!source.includes(baseFn))
+    return serveCompatBuffer(req,res,Buffer.from(source),'text/javascript; charset=utf-8',relative,loadSession);
+  const fsStub="  const fs = (typeof require === 'function') ? require('fs') : { readdirSync: () => [], readFileSync: () => 'null', writeFileSync: () => {}, existsSync: () => false }; /* mist: nwjs fs stub */";
+  const pathStub="  const path = (typeof require === 'function') ? require('path') : { dirname: (p) => { const a = String(p || '').split('/'); a.pop(); return a.join('/') || '.'; }, join: function () { return Array.prototype.filter.call(arguments, Boolean).join('/'); } }; /* mist: nwjs path stub */";
+  const baseGuard="  const getBasePath = () => (typeof process !== 'undefined' && process.mainModule) ? path.dirname(process.mainModule.filename) : '.'; /* mist: process guard */";
+  let patched=source.replace(fsDecl,fsStub).replace(pathDecl,pathStub).replace(baseFn,baseGuard);
+  return serveCompatBuffer(req,res,Buffer.from(patched),'text/javascript; charset=utf-8',relative,loadSession);
+}
+
+async function serveSoRDataNoteCompat(req,res,gameRoot,loadSession) {
+  const relative='/js/plugins/SoR_DataNoteExtension_MZ.js',file=path.join(gameRoot,'js','plugins','SoR_DataNoteExtension_MZ.js');
+  const source=await fsp.readFile(file,'utf8').catch(()=>null);
+  if(source===null)return text(res,404,'文件不存在');
+  if(!source.includes("const fs = require('fs');")||!source.includes('Extended_NotePath'))
+    return serveCompatBuffer(req,res,Buffer.from(source),'text/javascript; charset=utf-8',relative,loadSession);
+  let payload=soRNoteCache.get(gameRoot);
+  if(!payload){
+    const noteDir=path.join(gameRoot,'data','SoRNote');
+    const entries=await fsp.readdir(noteDir,{withFileTypes:true}).catch(()=>[]);
+    const names=entries.map(e=>e.name);
+    const files={};
+    const targets=entries.filter(e=>e.isFile()&&e.name.endsWith('_note'));
+    for(let i=0;i<targets.length;i+=32){
+      const batch=targets.slice(i,i+32);
+      const got=await Promise.all(batch.map(e=>fsp.readFile(path.join(noteDir,e.name),'utf8').catch(()=>null)));
+      got.forEach((c,j)=>{if(c!==null)files[batch[j].name]=c});
+    }
+    payload='const __mistSoRFS = (function () {\n'
+      +'  var names = '+JSON.stringify(names)+';\n'
+      +'  var files = '+JSON.stringify(files)+';\n'
+      +'  function base(f){ var s=String(f||""); return s.split("/").pop(); }\n'
+      +'  return { names: names, readdirSync: function () { return names.slice(); },'
+      +' readFileSync: function (f) { var k=base(f); return Object.prototype.hasOwnProperty.call(files,k) ? files[k] : ""; },'
+      +' existsSync: function (f) { return Object.prototype.hasOwnProperty.call(files, base(f)); },'
+      +' writeFileSync: function () {}, unlinkSync: function () {}, mkdirSync: function () {} };\n'
+      +'})();\n';
+    payload=payload.replace(/[\u0080-\uffff]/g,c=>'\\u'+c.charCodeAt(0).toString(16).padStart(4,'0'));
+    soRNoteCache.set(gameRoot,payload);
+    console.log('[mist SoRNote] 扩展备注内嵌：'+targets.length+' 个 _note，'+payload.length+' 字节（'+gameRoot+'）');
+  }
+  const open="(function() {";
+  const idx=source.indexOf(open);
+  let patched=idx<0?source:(source.slice(0,idx+open.length)+'\n'+payload+source.slice(idx+open.length));
+  patched=patched.split("const fs = require('fs');").join('const fs = __mistSoRFS;');
+  return serveCompatBuffer(req,res,Buffer.from(patched),'text/javascript; charset=utf-8',relative,loadSession);
+}
+
+const soRNoteCache=new Map();
 
 function fileExistsGuardFix(gameId){return `\n;(() => {\n  if(globalThis.__mistFileExistsGuard)return;globalThis.__mistFileExistsGuard=true;\n  const base=${JSON.stringify(path.posix.join('/games',gameId||''))};\n  globalThis.__mistExists=(p)=>{try{let s=String(p).replaceAll(String.fromCharCode(92),'/');while(s.startsWith('./'))s=s.slice(2);if(s.startsWith('www/'))s=s.slice(4);while(s.startsWith('/'))s=s.slice(1);if(!s)return false;const xhr=new XMLHttpRequest();xhr.open('HEAD',base+'/'+s.split('/').map(encodeURIComponent).join('/')+'?mistprobe=1',false);xhr.send(null);return xhr.status>=200&&xhr.status<400}catch(e){return false}};\n  const patch=()=>{try{if(typeof Game_Interpreter==='undefined')return;const proto=Game_Interpreter.prototype;if(!proto.command111||proto.command111.__mistExistsGuard)return;const orig=proto.command111;const wrapped=function(){const p=this._params;if(p&&String(p[0])==='12'&&typeof p[1]==='string'&&p[1].indexOf('existsSync(')>=0&&p[1].indexOf('require(')>=0){let code=p[1];code=code.split("require('fs').existsSync(").join('__mistExists(');code=code.split('require("fs").existsSync(').join('__mistExists(');let result=false;try{result=!!eval(code)}catch(e){console.warn('[雾灯] 存在性校验求值失败',e)}this._branch[this._indent]=result;if(result===false)this.skipBranch();return true}return orig.apply(this,arguments)};wrapped.__mistExistsGuard=true;proto.command111=wrapped}catch(e){}};\n  patch();setInterval(patch,1500);\n})();\n`}
 async function serveSaveSlotCustomCompat(req,res,gameRoot,loadSession) {
@@ -928,12 +1029,16 @@ async function serveMissingImageFallback(req,res,gameRoot,sub){
 // 或明文 PNG）返回。引擎 Decrypter.decryptArrayBuffer 解密环节完全不变，拿到的是限内尺寸。
 // 不适用/未超限 → 返回 null，走原 serveFile 原样流出（不影响其它游戏与路径）。
 
-// 读取图片尺寸（前 40 字节；支持明文 PNG 与 RMMV 加密 .rpgmvp 的 16 字节头偏移）
+// 读取图片尺寸（前 48 字节；支持明文 PNG、RMMV/MZ 加密 .rpgmvp/.png_ 的 16 字节签名偏移）
 async function readImageDims(file){
   const fh=await fsp.open(file,'r').catch(()=>null);if(!fh)return null;
-  try{const b=Buffer.alloc(40);const {bytesRead}=await fh.read(b,0,40,0);if(bytesRead<24)return null;
+  try{const b=Buffer.alloc(48);const {bytesRead}=await fh.read(b,0,48,0);if(bytesRead<24)return null;
     if(b[0]===0x89)return {width:b.readUInt32BE(16),height:b.readUInt32BE(20)};
-    if(bytesRead>=40&&b[16]===0x89)return {width:b.readUInt32BE(32),height:b.readUInt32BE(36)};
+    // mist: RPGMV/MZ 加密图（xxx.png_/.rpgmvp）= [16B RPGMV 签名][明文，仅前 16 字节 XOR key]
+    // → 明文 IHDR 宽高在文件偏移 32/36。用 IHDR 深度/类型/压缩/过滤字节（40-43）做形状校验，
+    // 防止把加密 JPEG 等非 PNG 载荷的随机字节误读为尺寸。
+    if(bytesRead>=48&&b[0]===0x52&&b[1]===0x50&&b[2]===0x47&&b[3]===0x4d&&b[4]===0x56&&b[42]===0&&b[43]===0&&[1,2,4,8,16].includes(b[40])&&[0,2,3,4,6].includes(b[41]))return {width:b.readUInt32BE(32),height:b.readUInt32BE(36)};
+    if(bytesRead>=48&&b[16]===0x89)return {width:b.readUInt32BE(32),height:b.readUInt32BE(36)};
     return null;
   }finally{await fh.close()}
 }
@@ -948,20 +1053,27 @@ async function serveAtlasCompat(req,res,gameRoot,sub){
   const stat=await fsp.stat(file).catch(()=>null);
   if(!stat?.isFile())return null;
   const maxSize=textureMaxForRequest(req);
-  const text=await fsp.readFile(file,'utf8').catch(()=>null);
-  if(text===null)return null;
+  const raw=await fsp.readFile(file).catch(()=>null);
+  if(raw===null)return null;
+  const text=raw.toString('utf8');
   const dir=path.dirname(file),pageScales={};let any=false;
   for(const line of text.split(/\r?\n/)){
     const t=line.trim();
     if(!t||/^\s/.test(line)||!/\.(png|jpe?g|webp)$/i.test(t))continue;
     const imgPath=path.join(dir,t);
-    const dim=await readImageDims(imgPath)||await readImageDims(imgPath.replace(/\.(png|jpe?g|webp)$/i,'.rpgmvp'));
+    const dim=await readImageDims(imgPath)||await readImageDims(imgPath.replace(/\.(png|jpe?g|webp)$/i,'.rpgmvp'))||await readImageDims(imgPath+'_'); // mist: MZ 加密图名是 xxx.png_（EMERALD TREASURE 等），漏找会导致 atlas 未缩放而贴图已降采样 → pixi 帧越界崩溃
     if(!dim)continue;
     const sc=atlasScaleFor(dim.width,dim.height,maxSize);
     if(!sc)continue;
     pageScales[t]={scale:sc.scale,width:sc.width,height:sc.height};any=true;
   }
-  if(!any)return null;
+  if(!any){
+    // mist: 无缩放需求也走本路径并统一 max-age=300：游戏端图集 URL 无法加版本号，
+    // 缩短缓存保证未来的图集级兼容修复 ≤5 分钟送达所有客户端（原 serveFile 是 86400）。
+    res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Content-Length':raw.length,'Cache-Control':'public, max-age=300'});
+    if(req.method==='HEAD')return res.end();
+    return res.end(raw);
+  }
   const body=Buffer.from(scaleAtlasText(text,pageScales),'utf8');
   res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Content-Length':body.length,'Cache-Control':'public, max-age=300'});
   if(req.method==='HEAD')return res.end();
@@ -1470,7 +1582,7 @@ function nwjsGlobalShimCompat(apply) {
   return `\n;(() => {
   if(globalThis.__mistNwjsGlobalShim)return;globalThis.__mistNwjsGlobalShim=true;
   const fsShim={readFileSync:()=>'',writeFileSync:()=>{},unlinkSync:()=>{},existsSync:()=>false,readdirSync:()=>[],mkdirSync:()=>{},statSync:()=>({isFile:()=>true,isDirectory:()=>false}),readFile:(p,cb)=>cb&&cb(null,''),writeFile:(p,d,cb)=>cb&&cb(null),openSync:()=>1,closeSync:()=>{},appendFileSync:()=>{},open:(p,f,cb)=>cb&&cb(null,1),close:(fd,cb)=>cb&&cb(null),appendFile:(p,d,cb)=>cb&&cb(null),readSync:()=>0,writeSync:()=>0,read:(fd,b,o,l,p,cb)=>cb&&cb(null,0),write:(fd,b,o,l,p,cb)=>cb&&cb(null,0)};
-  const pathShim={join:(...a)=>a.join('/').replace(/\\/+/g,'/'),dirname:p=>{const s=String(p).replace(/\\/g,'/'),i=s.lastIndexOf('/');return i<=0?'/':s.slice(0,i)},basename:p=>{const s=String(p).replace(/\\/g,'/');return s.slice(s.lastIndexOf('/')+1)},resolve:(...a)=>a.join('/'),extname:p=>{const s=String(p),i=s.lastIndexOf('.');return i>=0?s.slice(i):''}};
+  const pathShim={join:(...a)=>a.join('/').replace(/\\\\/g,'/'),dirname:p=>{const s=String(p).replace(/\\\\/g,'/'),i=s.lastIndexOf('/');return i<=0?'/':s.slice(0,i)},basename:p=>{const s=String(p).replace(/\\\\/g,'/');return s.slice(s.lastIndexOf('/')+1)},resolve:(...a)=>a.join('/'),extname:p=>{const s=String(p),i=s.lastIndexOf('.');return i>=0?s.slice(i):''}};
   if(!globalThis.require)globalThis.require=function(id){if(id==='fs')return fsShim;if(id==='path')return pathShim;if(/greenworks/i.test(id))return{initAPI:()=>false,isSteamRunning:()=>false};if(id==='nw.gui')return{};throw new Error('require('+id+') is not available in the browser')};
   if(!globalThis.process)globalThis.process={versions:{},mainModule:{filename:'Game.exe'},argv:[],env:{},platform:'win32',cwd:()=>'',on:()=>{},once:()=>{},exit:()=>{}};
   if(!globalThis.nw)globalThis.nw={App:{argv:[],quit:()=>{},on:()=>{}},Window:{open:()=>({width:0,height:0,on:()=>{},close:()=>{},window:{addEventListener:()=>{},removeEventListener:()=>{}}}),get:()=>({window:{addEventListener:()=>{},removeEventListener:()=>{}}})}};
@@ -1782,13 +1894,13 @@ if(p==='/api/mv-prosave-unwrap'&&req.method==='POST'){const raw=await readRawBod
     m=p.match(/^\/games\/([^/]+)\/js\/rmmz_managers\.js$/); if(m){
       const game=games.find(g=>g.id===m[1]);if(!game)return text(res,404,'游戏不存在');
       const file=path.join(await gameRootFor(game),'js','rmmz_managers.js'),source=await fsp.readFile(file,'utf8').catch(()=>null);if(source===null)return text(res,404,'文件不存在');
-      const wasm=await fsp.readFile(path.join(await gameRootFor(game),'js','rmmz_core.dat')).catch(()=>null),compat=protectedMzDatabaseCompat(source,wasm),manager=hirokaManagerCompat(await compatMatches(game,'hiroka'),source),output=Buffer.from(manager+compat+pluginLoaderCompat()+((await compatMatches(game,'xyouRoom'))?cgRoomSwitchFix():'')+'\n;window.__mistSaveInstall && window.__mistSaveInstall();window.__mistTranslationInstall && window.__mistTranslationInstall();\n');res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Content-Length':output.length,'Cache-Control':'no-store'});return res.end(output);
+      const wasm=await fsp.readFile(path.join(await gameRootFor(game),'js','rmmz_core.dat')).catch(()=>null),guarded=mzLocalFileWebNoopCompat(source),compat=protectedMzDatabaseCompat(guarded,wasm),manager=hirokaManagerCompat(await compatMatches(game,'hiroka'),guarded),output=Buffer.from(manager+compat+pluginLoaderCompat()+knsRejectStopGuard(source)+((await compatMatches(game,'xyouRoom'))?cgRoomSwitchFix():'')+'\n;window.__mistSaveInstall && window.__mistSaveInstall();window.__mistTranslationInstall && window.__mistTranslationInstall();\n');res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Content-Length':output.length,'Cache-Control':'no-store'});return res.end(output);
     }
     m=p.match(/^\/games\/([^/]+)\/js\/rpg_managers\.js$/); if(m){
       const game=games.find(g=>g.id===m[1]);if(!game)return text(res,404,'游戏不存在');
       const file=path.join(await gameRootFor(game),'js','rpg_managers.js'),source=await fsp.readFile(file,'utf8').catch(()=>null);if(source===null)return text(res,404,'文件不存在');
       if(await compatMatches(game,'nupu'))return await serveNupuManagersCompat(req,res,await gameRootFor(game),game.id);
-      const compat=protectedMvDatabaseCompat(source),manager=drillGfttLoaderCompat(await compatMatches(game,'gftt'),source),output=Buffer.from(manager+compat+pluginLoaderCompat()+((await compatMatches(game,'fileExistsGuard'))?fileExistsGuardFix(game.id):'')+'\n;window.__mistMvSaveInstall && window.__mistMvSaveInstall();window.__mistTranslationInstall && window.__mistTranslationInstall();\n');res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Content-Length':output.length,'Cache-Control':'no-store'});return res.end(output);
+      const guarded=audioNullSaveCompat(source),compat=protectedMvDatabaseCompat(guarded),manager=drillGfttLoaderCompat(await compatMatches(game,'gftt'),guarded),output=Buffer.from(manager+compat+pluginLoaderCompat()+((await compatMatches(game,'fileExistsGuard'))?fileExistsGuardFix(game.id):'')+'\n;window.__mistMvSaveInstall && window.__mistMvSaveInstall();window.__mistTranslationInstall && window.__mistTranslationInstall();\n');res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Content-Length':output.length,'Cache-Control':'no-store'});return res.end(output);
     }
     m=p.match(/^\/recollections\/([^/]+)(\/.*)?$/);if(m){
       const item=games.find(g=>g.id===m[1]&&g.type==='recollection');if(!item)return text(res,404,'回想网页不存在');
@@ -1822,7 +1934,7 @@ if(p==='/api/mv-prosave-unwrap'&&req.method==='POST'){const raw=await readRawBod
       if(game.engine==='krkr2'){const sub=m[2]||'/';if(sub==='/' ){res.writeHead(302,{Location:`/krkr-runtime/${game.id}/`,'Cache-Control':'no-store'});return res.end()}return text(res,404,'KRKR 资源由浏览器运行时提供')}
       const baseRoot=await gameRootFor(game);let sub=m[2]||'/';try{const dec=decodeURIComponent(sub);if(dec!==sub&&!/[\\]|(^|\/)\.\.(\/|$)/.test(dec))sub=dec}catch{}sub=sub.replace(/^\/js\/plugins\/\.mistv\/[^/]+\//,'/js/plugins/');const root=await resourceRootFor(game,sub,baseRoot),loadSession=requestLoadSession(req,m[1]);
       if(url.searchParams.get('mistprobe')==='1'){const probeFile=safeJoin(root,sub),probeStat=probeFile?await fsp.stat(probeFile).catch(()=>null):null;res.writeHead(probeStat?.isFile()?200:404,{'Content-Type':'text/plain; charset=utf-8','Content-Length':0,'Cache-Control':'no-store'});return res.end()}if(sub==='/'||sub==='/index.html')return await serveGameIndex(res,baseRoot,m[1]);
-      if(sub==='/js/main.js')return await serveMainCompat(req,res,root,game.id,loadSession);if(sub==='/js/plugins.js')return await servePluginListCompat(req,res,root,loadSession,game.id);if(drsBoost&&sub==='/js/plugins/DRS_BoostEngine.js')return await serveDrsBoostEngineCompat(req,res,root,game.id,loadSession);if(nwjs&&sub==='/js/plugins/DRS_BoostEngineMV.js')return await serveDrsBoostEngineCompat(req,res,root,game.id,loadSession,'DRS_BoostEngineMV.js');if(hiroka&&new RegExp(`^/js/plugins/(?:${HIROKA_PLUGIN_DIR}/)?(?:PluginUtils|AsyncLoadImage|AdvExtention|FontDictionary)\\.js$`).test(sub))return await serveHirokaPluginCompat(req,res,root,game.id,path.basename(sub,'.js'),loadSession);if(/^\/js\/plugins\/(?:Text2Frame|del_Text2Frame|del_CBR_LoadAllMapFile)\.js$/.test(sub))return await serveText2FrameCompat(req,res,root,path.basename(sub,'.js'),loadSession);if(sub==='/js/plugins/CommonSave.js')return await serveCommonSaveCompat(req,res,root,loadSession);if(/^\/js\/plugins\/(?:TS_ReplayMode|TS_Decode)\.js$/.test(sub))return await serveScenarioPluginCompat(req,res,root,path.basename(sub,'.js'),loadSession);if(sub==='/js/plugins/CsvAutoLoader.js')return await serveCsvAutoLoaderCompat(req,res,root,loadSession);if(sub==='/js/plugins/DRS_AllDataExtractor.js')return await serveDevExtractorCompat(req,res,root,loadSession);if(sub==='/js/plugins/Movie.js')return await serveMovieFPluginCompat(req,res,root,loadSession);if(sub==='/js/plugins/MoviePicture.js')return await serveMoviePictureCompat(req,res,root,loadSession);if(sub==='/js/plugins/JsScript76Set.js')return await serveJsScript76SetCompat(req,res,root,loadSession);if(sub==='/js/plugins/SaveSlotCustom.js')return await serveSaveSlotCustomCompat(req,res,root,loadSession);if(sub==='/js/plugins/Ayatam_AdvancedCharacterGraphics.js')return await serveAyatamCompat(req,res,root,baseRoot,loadSession);if(sub==='/js/plugins/enc_lv2d.js')return await serveEncLv2dCompat(req,res,root,loadSession);if(itanki&&(sub==='/js/plugins/DKTools.js'||sub==='/js/plugins/DKTools.v5.js'))return await serveItankiDKToolsCompat(req,res,root,sub,loadSession);if(itanki&&sub==='/js/plugins/live2d/cubism4ForMZ.js')return await serveItankiCubismCompat(req,res,root,loadSession);if(sub==='/js/plugins/FlowerCore.js'&&flowerCore)return await serveFlowerCoreCompat(req,res,root,loadSession);if(sub==='/js/plugins/Wataridori_AddFileSystem.js'&&wataridori)return await serveWataridoriCompat(req,res,root,loadSession);if(sub==='/js/plugins/Torigoya_Achievement2.js'&&wataridori)return await serveTorigoyaAchievementCompat(req,res,root,loadSession);if(sub==='/js/plugins/NekoGakuen_SteamworksAPI.js'&&steamworks)return await serveSteamworksCompat(req,res,root,loadSession);if(sub==='/js/plugins/villaA_AnimationTitleButtonFilter1.js')return await serveVillaAAnimationTitleCompat(req,res,root,loadSession);if(sub==='/js/plugins/stwv_allDataFlag.js')return await serveStwvAllDataFlagCompat(req,res,root,loadSession);if(sub==='/data/ExternMessage_en.csv'&&externMessage)return await serveExternMessageCsvCompat(req,res,root,loadSession);if(sub==='/data/CommonEvents.json')return await serveCommonEventsCompat(req,res,root,loadSession);if(sub==='/lng.txt'){const lngSrc=await fsp.readFile(path.join(root,'..','lng.txt')).catch(()=>null)||await fsp.readFile(path.join(root,'lng.txt')).catch(()=>null);if(!lngSrc)return text(res,404,'文件不存在');res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Content-Length':lngSrc.length,'Cache-Control':'no-store'});return res.end(lngSrc)}if(sub==='/js/rpg_core.js'||sub==='/js/rmmz_core.js')return await serveCoreWithCompat(req,res,root,path.basename(sub),loadSession,game.id);if(hiroka&&/\.(?:png_?|ogg_?)$/i.test(sub)){const r=await serveHirokaEncryptedCompat(req,res,root,sub,loadSession);if(r!==null)return r}if(eli){const r=await serveEliPictureCompat(req,res,root,sub,loadSession);if(r!==null)return r}if(itanki){const r=await serveItankiStampCompat(req,res,sub,loadSession);if(r!==null)return r;const r2=await serveItankiLocaleCompat(req,res,root,sub,loadSession);if(r2!==null)return r2}if(sub.startsWith('/img/')){const at=await serveAtlasCompat(req,res,root,sub);if(at!==null)return at;const r=await serveImageTextureCompat(req,res,root,sub);if(r!==null)return r;const r2=await serveMissingImageFallback(req,res,root,sub);if(r2!==null)return r2}if(/\.m4a$/i.test(sub)&&await serveM4aFallback(req,res,root,sub,game.id,loadSession))return;if(/\.rpgmvm$/i.test(sub)&&await serveEncryptedAudioM4a(req,res,root,sub,game,loadSession))return;if(/^\/js\/plugins\/.+\.js$/i.test(sub)){const r=await servePluginMarkerStripCompat(req,res,root,sub,loadSession);if(r!==null)return r}return await serveFile(req,res,root,sub,'public, max-age=86400',loadSession);
+      if(sub==='/js/main.js')return await serveMainCompat(req,res,root,game.id,loadSession);if(sub==='/js/plugins.js')return await servePluginListCompat(req,res,root,loadSession,game.id);if(drsBoost&&sub==='/js/plugins/DRS_BoostEngine.js')return await serveDrsBoostEngineCompat(req,res,root,game.id,loadSession);if(nwjs&&sub==='/js/plugins/DRS_BoostEngineMV.js')return await serveDrsBoostEngineCompat(req,res,root,game.id,loadSession,'DRS_BoostEngineMV.js');if(hiroka&&new RegExp(`^/js/plugins/(?:${HIROKA_PLUGIN_DIR}/)?(?:PluginUtils|AsyncLoadImage|AdvExtention|FontDictionary)\\.js$`).test(sub))return await serveHirokaPluginCompat(req,res,root,game.id,path.basename(sub,'.js'),loadSession);if(/^\/js\/plugins\/(?:Text2Frame|del_Text2Frame|del_CBR_LoadAllMapFile)\.js$/.test(sub))return await serveText2FrameCompat(req,res,root,path.basename(sub,'.js'),loadSession);if(sub==='/js/plugins/CommonSave.js')return await serveCommonSaveCompat(req,res,root,loadSession);if(/^\/js\/plugins\/(?:TS_ReplayMode|TS_Decode)\.js$/.test(sub))return await serveScenarioPluginCompat(req,res,root,path.basename(sub,'.js'),loadSession);if(sub==='/js/plugins/CsvAutoLoader.js')return await serveCsvAutoLoaderCompat(req,res,root,loadSession);if(sub==='/js/plugins/DRS_AllDataExtractor.js')return await serveDevExtractorCompat(req,res,root,loadSession);if(sub==='/js/plugins/Movie.js')return await serveMovieFPluginCompat(req,res,root,loadSession);if(sub==='/js/plugins/Sakura_MapNameExtend.js')return await serveSakuraMapNameCompat(req,res,root,loadSession);if(sub==='/js/plugins/SoR_DataNoteExtension_MZ.js')return await serveSoRDataNoteCompat(req,res,root,loadSession);if(sub==='/js/plugins/MoviePicture.js')return await serveMoviePictureCompat(req,res,root,loadSession);if(sub==='/js/plugins/JsScript76Set.js')return await serveJsScript76SetCompat(req,res,root,loadSession);if(sub==='/js/plugins/SaveSlotCustom.js')return await serveSaveSlotCustomCompat(req,res,root,loadSession);if(sub==='/js/plugins/Ayatam_AdvancedCharacterGraphics.js')return await serveAyatamCompat(req,res,root,baseRoot,loadSession);if(sub==='/js/plugins/enc_lv2d.js')return await serveEncLv2dCompat(req,res,root,loadSession);if(itanki&&(sub==='/js/plugins/DKTools.js'||sub==='/js/plugins/DKTools.v5.js'))return await serveItankiDKToolsCompat(req,res,root,sub,loadSession);if(itanki&&sub==='/js/plugins/live2d/cubism4ForMZ.js')return await serveItankiCubismCompat(req,res,root,loadSession);if(sub==='/js/plugins/FlowerCore.js'&&flowerCore)return await serveFlowerCoreCompat(req,res,root,loadSession);if(sub==='/js/plugins/Wataridori_AddFileSystem.js'&&wataridori)return await serveWataridoriCompat(req,res,root,loadSession);if(sub==='/js/plugins/Torigoya_Achievement2.js'&&wataridori)return await serveTorigoyaAchievementCompat(req,res,root,loadSession);if(sub==='/js/plugins/NekoGakuen_SteamworksAPI.js'&&steamworks)return await serveSteamworksCompat(req,res,root,loadSession);if(sub==='/js/plugins/villaA_AnimationTitleButtonFilter1.js')return await serveVillaAAnimationTitleCompat(req,res,root,loadSession);if(sub==='/js/plugins/CGMZ_SplashScreen.js')return await serveCycloneSplashCompat(req,res,root,loadSession);if(sub==='/js/plugins/stwv_allDataFlag.js')return await serveStwvAllDataFlagCompat(req,res,root,loadSession);if(sub==='/data/ExternMessage_en.csv'&&externMessage)return await serveExternMessageCsvCompat(req,res,root,loadSession);if(sub==='/data/CommonEvents.json')return await serveCommonEventsCompat(req,res,root,loadSession);if(sub==='/lng.txt'){const lngSrc=await fsp.readFile(path.join(root,'..','lng.txt')).catch(()=>null)||await fsp.readFile(path.join(root,'lng.txt')).catch(()=>null);if(!lngSrc)return text(res,404,'文件不存在');res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Content-Length':lngSrc.length,'Cache-Control':'no-store'});return res.end(lngSrc)}if(sub==='/js/rpg_core.js'||sub==='/js/rmmz_core.js')return await serveCoreWithCompat(req,res,root,path.basename(sub),loadSession,game.id);if(hiroka&&/\.(?:png_?|ogg_?)$/i.test(sub)){const r=await serveHirokaEncryptedCompat(req,res,root,sub,loadSession);if(r!==null)return r}if(eli){const r=await serveEliPictureCompat(req,res,root,sub,loadSession);if(r!==null)return r}if(itanki){const r=await serveItankiStampCompat(req,res,sub,loadSession);if(r!==null)return r;const r2=await serveItankiLocaleCompat(req,res,root,sub,loadSession);if(r2!==null)return r2}if(sub.startsWith('/img/')){const at=await serveAtlasCompat(req,res,root,sub);if(at!==null)return at;const r=await serveImageTextureCompat(req,res,root,sub);if(r!==null)return r;const r2=await serveMissingImageFallback(req,res,root,sub);if(r2!==null)return r2}if(/\.m4a$/i.test(sub)&&await serveM4aFallback(req,res,root,sub,game.id,loadSession))return;if(/\.rpgmvm$/i.test(sub)&&await serveEncryptedAudioM4a(req,res,root,sub,game,loadSession))return;if(/^\/js\/plugins\/.+\.js$/i.test(sub)){const r=await servePluginMarkerStripCompat(req,res,root,sub,loadSession);if(r!==null)return r}return await serveFile(req,res,root,sub,'public, max-age=86400',loadSession);
     }
     if(p==='/player.html'&&url.searchParams.get('game')){const game=games.find(g=>g.id===url.searchParams.get('game'));if(game?.engine==='krkr2')return await serveFile(req,res,PUBLIC_DIR,p,'no-cache',null,krkrIsolation)}
     if(p==='/config.js') return text(res,200,`window.SITE_CONFIG=${JSON.stringify({title:config.siteTitle})};`);
