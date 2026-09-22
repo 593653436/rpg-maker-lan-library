@@ -47,6 +47,16 @@
 | F_ 系 Movie 插件 NW 门卫 | MV | 回想/画廊入口校验拒绝进入（`unable to play movies`） | `Movie.js` 顶层 `if (!Utils.isNwjs())` 放弃初始化 → `SceneManager.playMovie` 未定义 → 画廊依赖校验失败 | 门卫中和（插件本体为纯浏览器写法）+ 自动播放被拒时静音重试；路径段版本化 | 自动测试；实机确认 |
 | 产品数据校验 `require('fs')` 误判 | MV/MZ | 事件循环弹“数据缺失”提示或循环对话 | 并行事件里 `require('fs').existsSync(...)` 在浏览器恒假 | 解释器条件命令按指纹注入 `__mistExists`（同步 XHR 探测 `?mistprobe=1` 真实存在性），完整还原分支语义 | 指纹驱动；实机确认 |
 
+| 事件系统固定字符串档名 | MV | 看事件/解锁写入被拒（“存档名称无效”） | `gameEnd/gameRecall/gameCloth/trueEnd` 不在存档桥白名单 | 扩充固定白名单（未知名称仍拒绝） | 自动测试；实机确认 |
+| KNS_GlobalInfo 全局旗标档 | MZ | 启动闪屏黑屏冻结（onReject→stop 全屏报错） | `knsGlobalInfo` 写档被 400 拒 → 未处理拒绝被升级为致命错误 | 白名单 + 桥错误 `__mistBridge` 标记 + 仅拦截桥拒绝的 `onReject` 守卫 | 自动测试；实机确认 |
+| 社区汉化翻译 JSON 注释 | MV/MZ | 有效翻译整包被忽略（台词保持原文） | 文件含 BOM 与整行 `//`、单行 `/* */` 注释，`JSON.parse` 抛错 | `parseTranslationJson` 宽容解析（BOM + 整行注释过滤） | 自动测试 |
+| CGMZ_SplashScreen Steam 门卫 | MZ | 启动画面卡住（提示需要 Steam） | 改版把 `!CycloneSteam.isSubscribedApp(<id>)` 当内容门卫，浏览器恒 false | 内容条件式恒真化 + 版本化路径 | 自动测试 |
+| 旧档读档音频 null | MV/MZ | 点击读档报错卡死 | 旧档 `_bgmOnSave/_bgsOnSave = null` | `playBgm/playBgs` 前置 null 守卫 | 自动测试 |
+| MZ 本地文件直调插件 | MZ | 改画面选项报 `require is not defined` | 插件直调 `StorageManager.saveToLocalFile` | 无 `require` 环境静默成功（本地文件不可用属预期） | 自动测试 |
+| MZ 加密图集配套缩放 | MZ | 手机端启动帧越界 / 图集与贴图不同步 | 图集页名解析漏 `NN.png_`；尺寸读取不识别 RPGMV 头 | 候选名补全 + RPGMV 头尺寸解析（形状校验）；无缩放短缓存 | 自动测试 |
+| SoR_DataNoteExtension | MZ | 启动阶段 Node `fs` 依赖失败 | 顶层读 `data/SoRNote/` 扩展备注 | 服务端内嵌备注为虚拟 fs（`__mistSoRFS`） | 自动测试 |
+| Sakura_MapNameExtend | MZ | 浏览器顶层 `require` 崩溃 | `fs/path/process.mainModule` 顶层依赖 | 安全 stub 替换（fs 空实现、path 纯字符串、process 守卫） | 自动测试 |
+
 ## 未公开的适配
 
 公开仓库有意不包含：

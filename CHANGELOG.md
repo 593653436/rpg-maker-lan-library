@@ -2,6 +2,27 @@
 
 本文遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号遵循语义化版本。
 
+## [1.4.0] - 2026-09-22
+
+### Added
+
+- **计划外存档名白名单扩充**：`gameEnd|gameRecall|gameCloth|trueEnd`（事件系统固定字符串档名）与 `knsGlobalInfo`（KNS_GlobalInfo 全局旗标档）——看事件/回想写入与 KNS 系游戏启动不再被桥 400 拒绝。
+- **翻译 JSON 宽容解析**（`parseTranslationJson`）：容忍 BOM、整行 `//` 与单行 `/* */` 注释（社区汉化文件风格）。
+- **Steam 订阅门卫中和**：`CGMZ_SplashScreen.js` 的 `!CycloneSteam.isSubscribedApp(<id>)` 在浏览器内容条件式恒真化（`cyclone-steam-1` 版本化路径）。
+- **读档音频 null 守卫**：`rpg_managers.js` 的 `playBgm/playBgs` 前置 null 检查（旧档 `_bgmOnSave/_bgsOnSave = null` 报错修复）。
+- **MZ 本地文件 API 静默化**：无 `require` 环境下 `StorageManager.saveToLocalFile` 直接静默成功。
+- **MZ 加密图集尺寸解析**：`readImageDims` 支持 `NN.png_`/`NN.rpgmvp` 的 RPGMV 头布局（IHDR 形状校验），图集候选名补全 `imgPath + '_'`；无缩放路径也走短缓存（max-age=300）。
+- **KNS 系启动闪屏冻结修复**：MZ 1.5+ `SceneManager.onReject → onError → stop()` 会把存档桥 4xx 升级为致命错误；现仅拦截带 `__mistBridge` 标记的桥拒绝（console.warn，不中止游戏），游戏自身未处理的拒绝维持原行为。
+- **SoR_DataNoteExtension 浏览器化**：`data/SoRNote/` 备注清单与内容由服务端内嵌为虚拟 fs（`__mistSoRFS`）。
+- **Sakura_MapNameExtend 浏览器化**：顶层 `fs`/`path`/`process.mainModule` 依赖替换为浏览器安全 stub。
+- 插件版本表新增：`Sakura_MapNameExtend: 'mapname-1'`、`SoR_DataNoteExtension_MZ: 'sornote-1'`、`CGMZ_SplashScreen: 'cyclone-steam-1'`。
+- 合成回归测试：翻译注释容忍、KNS 拒绝守卫、本地文件静默、音频 null 守卫、NW.js path shim 反斜杠归一化、加密图尺寸解析、三个插件路由变换与存档名白名单集成断言。
+
+### Fixed
+
+- 公开版 `pirateStripCache` 缺失声明：命中盗版标记剥离路径即 `ReferenceError`，现补齐声明（该路径此前无测试覆盖）。
+- NW.js 全局 shim 的 `path.join` 反斜杠归一化失效（字符串转义双写错误，含反斜杠路径不归位）。
+
 ## [1.3.0] - 2026-09-21
 
 ### Added
