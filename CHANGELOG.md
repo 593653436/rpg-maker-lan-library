@@ -2,6 +2,29 @@
 
 本文遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号遵循语义化版本。
 
+## [1.5.0] - 2026-09-23
+
+### Added
+
+- **TS_CommonSave 浏览器化**（`tsCommonSaveBrowserCompat`，`tscommonsave-1`）：Tranquil 系变体 `load()` 浏览器崩溃（`require` 被守卫后仍有未声明 `json` 引用逃出 try）→ 启动失败；save/load 改走 MV 存档桥（纯 JSON 进出，LZString 与 HTTP 由桥负责）。
+- **图鉴解锁三件套浏览器化**（`galleryUnlockBrowserCompat`：TitleExtra / CGGallery / EventGallery）：`require('fs')` 读写 `save/<Name>_unlocks.json` 替换为 `/api/game-unlocks/<id>/<file>` 桥（名称白名单校验）；CGGallery 目录列举替换为 `/api/picture-dir/<id>/<folder>`（服务端过滤 png/jpg/jpeg/rpgmvp、排序、剥扩展名、同名去重）。版本：`title-extra-1` / `cggallery-1` / `eventgallery-1`。
+- **SubFolderPicture 浏览器化**（`subFolderPictureBrowserCompat`，`subfolder-picture-1`）：`fs.readdirSync` 目录枚举替换为同一 `/api/picture-dir` 桥——回想内 HD CG 恢复显示。
+- **Ramza_PreTitleSplash_MZ 前导斜杠修复**（`ramzaSplashPathCompat`，`ramza-splash-1`）：splash 资源写成 `/img/...` 时被拼成柜根绝对路径 → 404 循环 → `Scene_Boot` 卡死；响应层把拼接目录去前导斜杠。
+- **Chimaki_Lang 浏览器化**（`chimakiLangFsCompat`，`chimaki-lang-1`）：webpack 内联 `fs` 模块替换为同步 XHR shim（路径去前导 `./` 相对游戏页解析），含 `\T[KEY]` 的 UI 文本查表不再崩。
+- **PicturePointColor 取色守卫**（`fixPicturePointColor`，`ppc-1`）：图片未读取完（bitmap 0×0）或未显示（null）时坐标 NaN → Chromium `getImageData` `TypeError` → 场景停止；几何/bitmap 守卫统一返回 -1（与插件「ピクチャ外」语义一致）。行尾自适应（LF/CRLF）。
+- **JsScript64Set 坏块修复**（复用 `fixJsScript76Set`，`jsscript64-1`）：与 76Set 字节级同一损坏（帮助模板 2 处未闭合字符串）。
+- **NW.js 工具条尾部守卫**（`nwGuiTailGuardCompat`）：汉化/整合组在 `main.js` 末尾追加 `require('nw.gui')` 工具条 → 浏览器同步 `ReferenceError` → 启动黑屏；现仅当 `require` 与 `nw` 同时存在（真实 NW.js）才执行该块。
+- **mtool 翻译快速匹配器**（`mtoolTranslatorFastCompat`，`mtool-fast-1`）：数万键巨型正则首段 `replace` 在手机 WebView 卡死数十秒~数分钟；手机 UA 注入分桶匹配器（桌面零改动，语义等价对拍测试）。
+- **手机端 WindowLayer 直绘**（`mv-window-layer-compat.mjs`）：MV1.6 `WindowLayer.renderWebGL` 用 VoidFilter 强制 FBO 合成，部分手机 WebView 整层丢失（对白全不渲染）；手机 UA 门控注入直绘分支，桌面零改动。
+- **幽灵存档槽屏蔽**（MV 桥内 `maskCommonMeta`）：`common` 元数据引用不存在的 `fileN` → 游戏读档守卫放行 → `loadGame` 静默失败卡死；无对应文件的槽位按空槽形态（`---`）归零，带指纹门槛防误伤。
+- **DataGuard `$RGD$` System.json 支持**（`mv-audio-crypto.mjs`）：整体加密的 `System.json` 先解密再取 `encryptionKey`（密钥取自 `plugins.js` 的 DataGuard_Decrypter 参数，回退 `TestKey9527`）。
+- 插件版本表新增 `TS_CommonSave` / `TitleExtra` / `CGGallery` / `EventGallery` / `SubFolderPicture` / `Ramza_PreTitleSplash_MZ` / `Chimaki_Lang` / `JsScript64Set` / `PicturePointColor` / `mtool_translator`；推进 `TS_ReplayMode` → `replay-mode-3`、`TS_Decode` → `scenario-decode-3`、`NekoGakuen_SteamworksAPI` → `steamworks-3`。
+- 内容指纹表更新；合成回归测试新增 9 个（nwjs-tail-guard / ramza-splash / chimaki-lang / picture-point-color / gallery-unlock / subfolder-picture / ts-common-save / mv-audio-crypto / jsscript64-set），移植 3 个（mtool-translator-fast / mv-window-layer-compat / mv-common-mask）。
+
+### Fixed
+
+- **翻译桥污染插件参数**：桥曾钩住 `Window_Message.convertEscapeCharacters` 做翻译；部分插件（PictureAnimation 等）借该引擎函数解析自身参数 → 参数被字典改写 → 多帧动画不启动（立绘变"PPT"）。现摘除该钩子；消息翻译由 `startMessage` 块级替换全量承接（去掉原"须含转义符"限定，纯文本块不漏译）。
+
 ## [1.4.0] - 2026-09-22
 
 ### Added

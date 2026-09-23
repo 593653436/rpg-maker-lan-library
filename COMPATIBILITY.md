@@ -57,6 +57,20 @@
 | SoR_DataNoteExtension | MZ | 启动阶段 Node `fs` 依赖失败 | 顶层读 `data/SoRNote/` 扩展备注 | 服务端内嵌备注为虚拟 fs（`__mistSoRFS`） | 自动测试 |
 | Sakura_MapNameExtend | MZ | 浏览器顶层 `require` 崩溃 | `fs/path/process.mainModule` 顶层依赖 | 安全 stub 替换（fs 空实现、path 纯字符串、process 守卫） | 自动测试 |
 
+| TS_CommonSave 系启动崩 | MV | 加载报错 / 启动失败 | `require('fs')` 被守卫后仍有未声明 `json` 引用逃出 try → `createGameObjects` 崩 | save/load 改走 MV 存档桥（纯 JSON 进出）；版本化路径 | 自动测试；实机确认 |
+| 图鉴解锁三件套（TitleExtra/CGGallery/EventGallery） | MV | 标题按钮不显示 / 图鉴全锁 | 三插件 `require('fs')` 读写解锁文件，浏览器抛错被各自 catch 吞掉 | 解锁文件读写换 `/api/game-unlocks` HTTP 桥（名称白名单）；CGGallery 目录列举走 `/api/picture-dir`；版本化路径 | 自动测试；实机确认 |
+| SubFolderPicture 子目录 CG | MV | 回想内 HD CG 不显示（占位图） | `fs.readdirSync` 枚举 `img/pictures/<folder>`，浏览器返回 [] → `folder/undefined` | 目录列表走 `/api/picture-dir`（服务端过滤/排序/剥扩展名/去重） | 自动测试；实机确认 |
+| Ramza_PreTitleSplash_MZ 前导斜杠 | MZ | 启动卡死（位图永不就绪） | splash 参数 File 为 `/img/...` → 拼成柜根绝对路径 → 循环 404 | 响应层把拼接目录去前导斜杠（无斜杠参数为无操作替换） | 自动测试；实机确认 |
+| Chimaki_Lang CSV 字典 | MZ | 含 `\T[KEY]` 的 UI 文本查表崩 | webpack 内联模块 `require("fs")` 浏览器同步 ReferenceError → 字典永不载入 | fs 模块换同步 XHR shim；版本化路径 | 自动测试；实机确认 |
+| PicturePointColor 取色 | MV | 菜单「思い出す」报错停场景 | 未加载完的 bitmap（0×0）→ NaN 坐标 → Chromium `getImageData` TypeError | 几何/bitmap 守卫返回 -1（插件「ピクチャ外」语义） | 自动测试；实机确认 |
+| JsScript64Set 坏块 | MV | 插件 SyntaxError（整包报废） | 生成工具把帮助模板写回源码（2 处未闭合字符串） | 复用 76Set 修复器精确替换（全部出现处）；版本化路径 | 自动测试；实机确认 |
+| 整合包 main.js 尾部 NW.js 工具条 | MV/MZ | 启动黑屏（无报错画面） | 尾部 IIFE `require('nw.gui')` 同步 ReferenceError → 跳过 `SceneManager.run` | 仅当 `require` 与 `nw` 同时存在才执行该块（浏览器直接跳过） | 自动测试；实机确认 |
+| mtool 巨型正则手机卡死 | MV | 手机首段翻译卡死数十秒~数分钟 | 数万键巨型正则单次 `replace` 解释器路径退化 | 手机 UA 注入分桶匹配器（语义等价对拍）；路径段版本化 | 自动测试；实机确认 |
+| 手机对白不渲染（WindowLayer 整层丢） | MV | 手机端对话框文字全不显示（名字/气泡正常） | MV1.6 `WindowLayer.renderWebGL` 强制 FBO 合成在部分手机 WebView 丢失 | 手机 UA 门控注入直绘分支（桌面零改动） | 自动测试；实机确认 |
+| 幽灵存档槽（整合包缺档） | MV | 读档界面点槽位无反应 / 卡死 | `common` 元数据引用不存在的 `fileN`，游戏守卫放行 → `loadGame` 静默 false | 桥内槽位屏蔽：元数据非空但无对应文件的槽按空槽形态归零（指纹门槛） | 自动测试；实机确认 |
+| DataGuard `$RGD$` 加密 System.json | MV | 加密音频链取不到 key（移动端音频转换整体失败） | `System.json` 整体加密 → `JSON.parse` 失败 | 先 `$RGD$` 解密（密钥取自 `plugins.js` 参数，回退默认键）再取 encryptionKey | 自动测试；实机确认 |
+| 翻译桥污染插件参数（立绘变"PPT"） | MV | 多帧动画不启动，只在状态切换时整张重显 | 翻译桥钩 `Window_Message.convertEscapeCharacters`，插件借用该引擎函数解析的参数被字典改写 | 摘除越界钩子；消息翻译由 `startMessage` 块级替换承接 | 自动测试；实机确认 |
+
 ## 未公开的适配
 
 公开仓库有意不包含：
