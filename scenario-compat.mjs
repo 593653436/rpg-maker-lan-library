@@ -1,5 +1,5 @@
 const REPLAY_SIGNATURES = [
-  /PluginManager\.parameters\s*\(\s*['"]ReplayMode['"]\s*\)/,
+  /PluginManager\.parameters\s*\(\s*['"](?:TS_)?ReplayMode['"]\s*\)/,
   /Window_RP\.prototype\.fileLoad\s*=\s*function/,
   /Window_CG\.prototype\.fileLoad\s*=\s*function/,
   /ReplayAllOpen\s*=\s*function/,
@@ -13,6 +13,14 @@ const DECODE_SIGNATURES = [
   /var\s+argTsDecodeKey\s*=\s*255/,
   /var\s+argLanguagePath\s*=\s*\[/,
   /ADV_System\.prototype\.fileLoad\s*=\s*function\s*\(\s*filename\s*\)/,
+  /TS_Function\.getScenarioExtension\s*\(\s*\)/,
+  /require\s*\(\s*['"]fs['"]\s*\)/,
+];
+
+const DECODE_VARIANT_SIGNATURES = [
+  /ADV_System\.prototype\.fileLoad\s*=\s*function\s*\(\s*filename\s*\)/,
+  /eval\s*\(\s*parameters\s*\[\s*['"]Decode['"]\s*\]/,
+  /parseInt\s*\(\s*parameters\s*\[\s*['"]Key['"]\s*\]/,
   /TS_Function\.getScenarioExtension\s*\(\s*\)/,
   /require\s*\(\s*['"]fs['"]\s*\)/,
 ];
@@ -32,7 +40,8 @@ export function replayModeBrowserCompat(source) {
 }
 
 export function scenarioDecodeBrowserCompat(source) {
-  if (typeof source !== 'string' || !DECODE_SIGNATURES.every(pattern => pattern.test(source))) return source;
+  if (typeof source !== 'string') return source;
+  if (!DECODE_SIGNATURES.every(pattern => pattern.test(source))) return scenarioDecodeVariantCompat(source);
   const method = /ADV_System\.prototype\.fileLoad\s*=\s*function\s*\(\s*filename\s*\)\s*\{\s*var\s+lang_val\s*=\s*\$gameVariables\.value\s*\(\s*TS_GameConfig\.LanguageVal\s*\)\s*;[\s\S]*?return\s+file_data\s*;\s*\n\s*\}/;
   if (!method.test(source)) return source;
   const replacement = `ADV_System.prototype.fileLoad = function(filename) {
@@ -49,6 +58,16 @@ export function scenarioDecodeBrowserCompat(source) {
         return file_data;
     }`;
   const output = source.replace(method, replacement).replace(/\/\*[\s\S]*?\*\//g,block=>block.replace(/require\s*\(/g,'require_disabled('));
+  if (output === source || /require\s*\(\s*['"]fs['"]\s*\)/.test(output)) return source;
+  return `${output}\n;globalThis.__mistScenarioDecodeBrowserCompat = true;\n`;
+}
+
+// 简化版 TS_Decode（如 女騎士レティシア 巴比伦汉化）：无 argLanguagePath/lang_val 多语言结构，
+// 仅 eval(parameters['Decode']) + parseInt(parameters['Key']) + 单一 fs 读取。
+// 只替换 fs 读取三元组为场景文本桥，XOR 解码循环保持原样。
+function scenarioDecodeVariantCompat(source) {
+  if (!DECODE_VARIANT_SIGNATURES.every(pattern => pattern.test(source))) return source;
+  const output = replaceRequireReads(source);
   if (output === source || /require\s*\(\s*['"]fs['"]\s*\)/.test(output)) return source;
   return `${output}\n;globalThis.__mistScenarioDecodeBrowserCompat = true;\n`;
 }

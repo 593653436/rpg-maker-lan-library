@@ -35,7 +35,7 @@ export function hirokaPluginCompat(apply,name,source,manifest={}){
     const files=[...new Set(manifest.files||[])].map(x=>String(x).replaceAll('\\','/'));
     let output=replaceNodeImport(source,'fs','const fs = null;').replace(/const\s+exec\s*=\s*require\s*\(\s*['"]child_process['"]\s*\)\.exec\s*;/,'const exec = null;');
     const start=/const\s+fileExists\s*=\s*\(\s*basePath\s*,\s*fileName\s*\)\s*=>\s*\{/.exec(output);if(!start)return source;let i=start.index+start[0].length,depth=1;for(;i<output.length&&depth;i++){if(output[i]==='{')depth++;else if(output[i]==='}')depth--}if(depth)return source;const end=/\s*;/.exec(output.slice(i));if(!end)return source;i+=end.index+end[0].length;
-    const compat=`const __mistFiles=new Set(${JSON.stringify(files)});\n    const fileExists=(basePath,fileName)=>{const key=buildPath(basePath,fileName).replaceAll('\\\\','/').replace(/^\.\//,'');return __mistFiles.has(key)};`;
+    const compat=`const __mistFiles=new Set(${JSON.stringify(files)});\n    const fileExists=(basePath,fileName)=>{const key=buildPath(basePath,fileName).replaceAll(${JSON.stringify('\\')},'/').replace(/^[.][/]/,'');return __mistFiles.has(key)};`;
     return output.slice(0,start.index)+compat+output.slice(i);
   }
   if(name==='AsyncLoadImage'){
