@@ -2,6 +2,24 @@
 
 本文遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号遵循语义化版本。
 
+## [1.6.0] - 2026-09-24
+
+### Added
+
+- **`mobileAudio` 内容指纹**：手机端 `audioFileExt()` 与库内容错配（老 MV 在移动端取 `.m4a`，库内仅 `.ogg` / 加密 `.rpgmvo`）→ 手机 UA 下强制 `.ogg`（客户端解密路线），桌面零改动；无法播放 ogg 的环境自动回退原行为。指纹 +2（御神巫女、NTR騎士 等）。
+- **m4a 转码密钥叠加层感知**：Enigma 打包游戏的 `data/` 位于 `launcher-overlays` 叠加层，常规 webRoot 读不到 `System.json` 密钥 → 加密音频转码静默失败；现密钥解析失败时经叠加层感知路径重试。
+- **存档名白名单模式扩展**：`_by_[a-z0-9_]+`（BY_GlobalData 等 BY 系插件全局档）与 `master`（NovelGameUI）——按模式匹配、未知名称仍拒绝。
+- **翻译查找链增「裸标签剥试 + 前缀还原」**（`stripBareTags`）：`<WordWrap>` / `<br>` / `<名字>` 等裸尖括号标签前缀的整段对白恢复翻译，命中后原样保留前缀；未命中不改写。
+- **场景插件残留死代码剥离**（`stripVestigialFsRequires`）：仅对「fs 行 + filepath 行 + 注释直读 + ADV 桥读取」精确相邻形态整行移除，避免「有残留即整体放弃」的静默回退。插件版本表推进 `TS_ReplayMode` → `replay-mode-4`。
+- 合成回归测试新增 2 个（`scenario-replay-strip` / `mv-audio-overlay-key`），扩写 2 处（翻译裸标签链、集成存档白名单往返）。
+
+### Fixed
+
+- **手机端音频无声（两类）**：① 老 MV 移动端 `.m4a` 请求 vs 库内 `.ogg`（作者覆盖 `shouldUseHtml5Audio` 恒 WebAudio）；② Enigma 叠加层游戏转码链缺密钥 → 均经上述机制修复，仿真移动环境实测音频全链路正常。
+- **带裸标签的对白整段漏译**：匹配链只认转义控制码形态 → 剥标签重试并还原前缀。
+- **回想插件整文件回退**：残留死代码 `require('fs')` 触发保守守卫 → 服务端吐原版 → 浏览器报错；精确形态整行移除后变换成立。
+- **BY 系全局档 400**：`_by_globaldata` 等读写在白名单外 → CG 回想解锁记录恒空（黑屏 / 0 计数）；白名单模式扩充后读写往返正常。
+
 ## [1.5.0] - 2026-09-23
 
 ### Added

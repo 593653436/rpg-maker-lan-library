@@ -68,6 +68,11 @@
 | 幽灵存档槽（整合包缺档） | MV | 读档界面点槽位无反应 / 卡死 | `common` 元数据引用不存在的 `fileN`，游戏守卫放行 → `loadGame` 静默 false | 桥内槽位屏蔽：元数据非空但无对应文件的槽按空槽形态归零（指纹门槛） | 自动测试；实机确认 |
 | DataGuard `$RGD$` 加密 System.json | MV | 加密音频链取不到 key（移动端音频转换整体失败） | `System.json` 整体加密 → `JSON.parse` 失败 | 先 `$RGD$` 解密（密钥取自 `plugins.js` 参数，回退默认键）再取 encryptionKey | 自动测试；实机确认 |
 | 翻译桥污染插件参数（立绘变"PPT"） | MV | 多帧动画不启动，只在状态切换时整张重显 | 翻译桥钩 `Window_Message.convertEscapeCharacters`，插件借用该引擎函数解析的参数被字典改写 | 摘除越界钩子；消息翻译由 `startMessage` 块级替换承接 | 自动测试；实机确认 |
+| 手机端音频扩展名错配 | MV | 手机端无声音（库内为 `.ogg`，客户端按 `.m4a` 请求） | 老 MV 移动端强制 `.m4a`（或作者覆盖 `shouldUseHtml5Audio` 恒 WebAudio） | `mobileAudio` 内容指纹：手机 UA 下强制 `.ogg`（客户端解密路线，桌面零改动） | 自动测试；实机确认 |
+| 裸标签对白整段漏译 | MV | 带 `<WordWrap>` / `<br>` / `<名字>` 标签前缀的整段对白不翻译 | 显示层翻译查找链不认裸尖括号标签前缀 | 查找链增「剥标签重试 + 命中后前缀还原」（`stripBareTags`）；未命中不改写 | 自动测试；实机确认 |
+| 回想插件整文件静默回退 | MV | 进入回想报错（适配未生效） | `TS_ReplayMode.js` 残留死代码 `require('fs')`，旧守卫「有残留即整体放弃」→ 服务端吐原版 | `stripVestigialFsRequires` 仅对「fs 行 + filepath 行 + 注释直读 + ADV 桥读取」精确相邻形态整行移除；`replay-mode-4` | 自动测试；实机确认 |
+| BY 系全局档读写被拒 | MZ | 回想界面黑屏、CG 计数恒 0 | 存档名白名单不含 `_by_globaldata`（BY_GlobalData 全局档）与 `master`（NovelGameUI） | 白名单增 `_by_[a-z0-9_]+` 泛化与 `master`；未知名称仍拒绝 | 自动测试；实机确认 |
+| Enigma 叠加层加密音频转码缺钥 | MV | 手机端音频全静音（桌面正常） | 数据目录位于 `launcher-overlays` 叠加层 → m4a 转码链读不到 `System.json` 密钥 | m4a 路由密钥读取改走叠加层感知解析；叠加 `mobileAudio` 指纹客户端解密路线 | 自动测试；实机确认 |
 
 ## 未公开的适配
 
