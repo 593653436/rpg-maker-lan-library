@@ -52,6 +52,7 @@ test('synthetic MV/MZ library works without real games',{skip:process.platform!=
     const rejected=await fetch(`${base}/api/game-saves/${mvGame.id}/arbitrary`,{headers});assert.equal(rejected.status,400);
     const knsOk=await fetch(`${base}/api/game-saves/${mzGame.id}/knsGlobalInfo`,{method:'PUT',headers,body:'{"x":1}'});assert.ok(knsOk.ok,'knsGlobalInfo 应在白名单');
     for(const nm of ['gameEnd','gameRecall','gameCloth','trueEnd']){const r2=await fetch(`${base}/api/game-saves/${mvGame.id}/${nm}`,{method:'PUT',headers,body:'{}'});assert.ok(r2.ok,nm+' 应在白名单')}
+    for(const nm of ['_by_globaldata','master']){const r3=await fetch(`${base}/api/game-saves/${mvGame.id}/${nm}`,{method:'PUT',headers,body:'{"k":1}'});assert.ok(r3.ok,nm+' 应在白名单（BY/NovelGameUI 系）');const g3=await fetch(`${base}/api/game-saves/${mvGame.id}/${nm}`,{headers});assert.equal(g3.status,200,nm+' 应可读回')}
     const plugins=await fetch(`${base}/games/${mvGame.id}/js/plugins.js`,{headers}).then(r=>r.text());assert.match(plugins,/PluginCommonBase/);
     // FMOO 存档：服务端解包端点（合成 ProSave 格式）
     const proSave = '@@__FMOO_PROSAVE__@@' + zlib.deflateRawSync(Buffer.from('{"system":{"x":1}}')).toString('base64');

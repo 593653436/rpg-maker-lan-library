@@ -25,7 +25,7 @@ context.PluginManager.loadScript('JsScript64Set.js');
 context.PluginManager.loadScript('PicturePointColor.js');
 context.PluginManager.loadScript('Unrelated.js');
 assert.deepEqual(calls,[
- 'js/plugins/.mistv/replay-mode-3/TS_ReplayMode.js',
+ 'js/plugins/.mistv/replay-mode-4/TS_ReplayMode.js',
  'js/plugins/.mistv/scenario-decode-3/TS_Decode.js',
  'js/plugins/.mistv/common-save-1/CommonSave.js',
  'js/plugins/.mistv/cyclone-steam-1/CGMZ_SplashScreen.js',
@@ -52,11 +52,11 @@ mz.PluginManager.loadScript('Unrelated');
 assert.deepEqual(mzCalls,[
  'js/plugins/.mistv/mobile-media-5/MoviePicture.js',
  'js/plugins/.mistv/cyclone-steam-1/CGMZ_SplashScreen.js',
- 'js/plugins/.mistv/replay-mode-3/TS_ReplayMode.js',
+ 'js/plugins/.mistv/replay-mode-4/TS_ReplayMode.js',
  'js/plugins/.mistv/title-extra-1/TitleExtra.js',
  'js/plugins/Unrelated.js'
 ]);
 assert.doesNotMatch(mzCalls[0],/%3F|\.js\.js|\?/);
 assert.match(mzCalls[0],/^js\/plugins\/\.mistv\/[^/]+\/[^/]+\.js$/);
 
-console.log(JSON.stringify({ok:true,mvLoadScript:true,mzMakeUrl:true,mzQueryNotEncoded:true,pathVersioning:true,replayVersion:'replay-mode-3',decodeVersion:'scenario-decode-3',movieVersion:'mobile-media-5',splashVersion:'cyclone-steam-1',titleExtraVersion:'title-extra-1',cgGalleryVersion:'cggallery-1',eventGalleryVersion:'eventgallery-1',subFolderPictureVersion:'subfolder-picture-1',steamworksVersion:'steamworks-3',ramzaSplashVersion:'ramza-splash-1',chimakiLangVersion:'chimaki-lang-1',jsscript64Version:'jsscript64-1',ppcVersion:'ppc-1',unrelatedPreserved:true},null,2));
+console.log(JSON.stringify({ok:true,mvLoadScript:true,mzMakeUrl:true,mzQueryNotEncoded:true,pathVersioning:true,replayVersion:'replay-mode-4',decodeVersion:'scenario-decode-3',movieVersion:'mobile-media-5',splashVersion:'cyclone-steam-1',titleExtraVersion:'title-extra-1',cgGalleryVersion:'cggallery-1',eventGalleryVersion:'eventgallery-1',subFolderPictureVersion:'subfolder-picture-1',steamworksVersion:'steamworks-3',ramzaSplashVersion:'ramza-splash-1',chimakiLangVersion:'chimaki-lang-1',jsscript64Version:'jsscript64-1',ppcVersion:'ppc-1',unrelatedPreserved:true},null,2));

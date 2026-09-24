@@ -54,10 +54,38 @@ test('runtime messages with decoration hit the dictionary through the chain', ()
   assert.equal(lookup('関係のない台詞です'), null);
 });
 
+test('bare angle-bracket tagged lines resolve via strip-retry and keep the prefix', () => {
+  // 与 server.mjs 注入桥 translatedValue 一致：tvBase 未中 → 剥裸标签（<WordWrap>/<br>/<名字>）重试 → 前缀还原
+  const tagDict = {
+    'ほら、処女の証拠！': '看，处女的证据！',
+    'ふふんっ、このセクハラ親父め。こうすれば見えるでしょ！': '哼，这个性骚扰大叔。这样就能看到了吧！'
+  };
+  const stripBareTags = k => k.replace(/<[^<>]{1,24}>/g, '');
+  const lookupTagged = key => {
+    if (typeof key !== 'string') return null;
+    if (tagDict[key] !== undefined) return tagDict[key];
+    if (key.indexOf('<') < 0) return null;
+    const bare = stripBareTags(key);
+    if (bare === key) return null;
+    if (tagDict[bare] !== undefined) {
+      const m = key.match(/^(?:<[^<>]{1,24}>|\n|\s)+/);
+      return (m ? m[0] : '') + tagDict[bare];
+    }
+    return null;
+  };
+  assert.equal(lookupTagged('<WordWrap>ほら、処女の証拠！'), '<WordWrap>看，处女的证据！');
+  assert.equal(lookupTagged('<WordWrap><br>ほら、処女の証拠！'), '<WordWrap><br>看，处女的证据！');
+  assert.equal(lookupTagged('<ティナ>ふふんっ、このセクハラ親父め。こうすれば見えるでしょ！'), '<ティナ>哼，这个性骚扰大叔。这样就能看到了吧！');
+  assert.equal(lookupTagged('<WordWrap>没有翻译的文本内容'), null, '字典无命中不得改写');
+});
+
 test('server.mjs keeps the chain markers (drift guard)', () => {
   const src = fs.readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
   assert.ok(src.includes("replace(/[.．。…]{2,}/g,'…')"), '省略号折叠缺失');
   assert.ok(src.includes('♡♥❤'), '首尾剥壳字符类缺失');
   assert.ok(src.includes('im[0].length<k3.length'), '语气前缀剥离缺失');
   assert.ok(src.includes('tail.length<=16'), '最长前缀回退缺失');
+  assert.ok(src.includes("const stripBareTags=key=>key.replace(/<[^<>]{1,24}>/g,'')"), '裸标签剥离缺失');
+  assert.ok(src.includes('const tvBase=key=>'), 'tvBase 链缺失');
+  assert.ok(src.includes('key.match(/^(?:<[^<>]{1,24}>|'), '裸标签前缀还原缺失');
 });
