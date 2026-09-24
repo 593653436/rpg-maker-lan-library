@@ -32,9 +32,20 @@ function replaceRequireReads(source) {
   );
 }
 
+// 残留形态（2017 版式 TS_ReplayMode：RP/CG 窗口先有一行死代码 `var fs = require('fs');`——直读已注释、
+// 实际读取走 ADV_System.prototype.fileLoad）。浏览器中该行同步抛错，且“有残留即整体回退”的保守守卫会让
+// 整个文件回退原版；此处仅在“fs 行 + filepath 行 + 注释死读 + ADV 桥读取”的精确相邻形态下整行移除。
+function stripVestigialFsRequires(source) {
+  return source.replace(
+    /^[ \t]*var\s+fs\s*=\s*require\s*\(\s*['"]fs['"]\s*\)\s*;[ \t]*\r?\n(?=[ \t]*var\s+filepath\s*=[^\n]*;[ \t]*\r?\n[ \t]*\/\/[^\n]*fs\.readFileSync[^\n]*\r?\n[ \t]*var\s+file_data\s*=\s*ADV_System\.prototype\.fileLoad\s*\()/gm,
+    ''
+  );
+}
+
 export function replayModeBrowserCompat(source) {
   if (typeof source !== 'string' || !REPLAY_SIGNATURES.every(pattern => pattern.test(source))) return source;
-  const output = replaceRequireReads(source);
+  let output = replaceRequireReads(source);
+  output = stripVestigialFsRequires(output);
   if (output === source || /require\s*\(\s*['"]fs['"]\s*\)/.test(output)) return source;
   return `${output}\n;globalThis.__mistReplayModeBrowserCompat = true;\n`;
 }
