@@ -46,7 +46,6 @@
 | 插件 URL 查询串破坏自名推导 | MV/MZ | 插件命令全部静默失效（如回想模式拒绝进入） | 缓存击穿用 `?mistv=` 查询串；部分插件用 `document.currentScript.src` 正则取文件名，查询串致正则失配，命令注册到了完整 URL 名下 | 版本标记改为路径段 `js/plugins/.mistv/<ver>/<name>.js`（文件名保持干净、路径变化同样击穿缓存） | 自动测试 |
 | F_ 系 Movie 插件 NW 门卫 | MV | 回想/画廊入口校验拒绝进入（`unable to play movies`） | `Movie.js` 顶层 `if (!Utils.isNwjs())` 放弃初始化 → `SceneManager.playMovie` 未定义 → 画廊依赖校验失败 | 门卫中和（插件本体为纯浏览器写法）+ 自动播放被拒时静音重试；路径段版本化 | 自动测试；实机确认 |
 | 产品数据校验 `require('fs')` 误判 | MV/MZ | 事件循环弹“数据缺失”提示或循环对话 | 并行事件里 `require('fs').existsSync(...)` 在浏览器恒假 | 解释器条件命令按指纹注入 `__mistExists`（同步 XHR 探测 `?mistprobe=1` 真实存在性），完整还原分支语义 | 指纹驱动；实机确认 |
-
 | 事件系统固定字符串档名 | MV | 看事件/解锁写入被拒（“存档名称无效”） | `gameEnd/gameRecall/gameCloth/trueEnd` 不在存档桥白名单 | 扩充固定白名单（未知名称仍拒绝） | 自动测试；实机确认 |
 | KNS_GlobalInfo 全局旗标档 | MZ | 启动闪屏黑屏冻结（onReject→stop 全屏报错） | `knsGlobalInfo` 写档被 400 拒 → 未处理拒绝被升级为致命错误 | 白名单 + 桥错误 `__mistBridge` 标记 + 仅拦截桥拒绝的 `onReject` 守卫 | 自动测试；实机确认 |
 | 社区汉化翻译 JSON 注释 | MV/MZ | 有效翻译整包被忽略（台词保持原文） | 文件含 BOM 与整行 `//`、单行 `/* */` 注释，`JSON.parse` 抛错 | `parseTranslationJson` 宽容解析（BOM + 整行注释过滤） | 自动测试 |
@@ -56,7 +55,6 @@
 | MZ 加密图集配套缩放 | MZ | 手机端启动帧越界 / 图集与贴图不同步 | 图集页名解析漏 `NN.png_`；尺寸读取不识别 RPGMV 头 | 候选名补全 + RPGMV 头尺寸解析（形状校验）；无缩放短缓存 | 自动测试 |
 | SoR_DataNoteExtension | MZ | 启动阶段 Node `fs` 依赖失败 | 顶层读 `data/SoRNote/` 扩展备注 | 服务端内嵌备注为虚拟 fs（`__mistSoRFS`） | 自动测试 |
 | Sakura_MapNameExtend | MZ | 浏览器顶层 `require` 崩溃 | `fs/path/process.mainModule` 顶层依赖 | 安全 stub 替换（fs 空实现、path 纯字符串、process 守卫） | 自动测试 |
-
 | TS_CommonSave 系启动崩 | MV | 加载报错 / 启动失败 | `require('fs')` 被守卫后仍有未声明 `json` 引用逃出 try → `createGameObjects` 崩 | save/load 改走 MV 存档桥（纯 JSON 进出）；版本化路径 | 自动测试；实机确认 |
 | 图鉴解锁三件套（TitleExtra/CGGallery/EventGallery） | MV | 标题按钮不显示 / 图鉴全锁 | 三插件 `require('fs')` 读写解锁文件，浏览器抛错被各自 catch 吞掉 | 解锁文件读写换 `/api/game-unlocks` HTTP 桥（名称白名单）；CGGallery 目录列举走 `/api/picture-dir`；版本化路径 | 自动测试；实机确认 |
 | SubFolderPicture 子目录 CG | MV | 回想内 HD CG 不显示（占位图） | `fs.readdirSync` 枚举 `img/pictures/<folder>`，浏览器返回 [] → `folder/undefined` | 目录列表走 `/api/picture-dir`（服务端过滤/排序/剥扩展名/去重） | 自动测试；实机确认 |
