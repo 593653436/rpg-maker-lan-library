@@ -79,6 +79,33 @@ test('bare angle-bracket tagged lines resolve via strip-retry and keep the prefi
   assert.equal(lookupTagged('<WordWrap>没有翻译的文本内容'), null, '字典无命中不得改写');
 });
 
+test('lead-interjection prefix is stripped and re-attached (语气前缀类)', () => {
+  // 镜像 server.mjs 注入桥 translatedValue 的口语前缀分支：
+  // 词典存「去前缀正文」，运行期文本带 なっ!! / っ!! / ふっ!! 等前缀时，剥离后命中再原样贴回前缀。
+  const d = { 'そんなことできる訳がありません!!': '那怎么可能办到!!' };
+  const controlFree = t => t.replace(controls, '');
+  const tvBase = k => (Object.prototype.hasOwnProperty.call(d, k) ? d[k] : null);
+  const translatedValue = key => {
+    if (typeof key !== 'string') return null;
+    const v = tvBase(key);
+    if (v !== null) return v;
+    const im0 = key.match(/^(?:[ぁ-んァ-ヶー]{1,3}[.．。…！!？?、]{1,6})/);
+    if (im0) {
+      const rest0 = key.slice(im0[0].length);
+      if (rest0.length >= 4 && controlFree(rest0) === rest0) {
+        const v0 = tvBase(rest0);
+        if (v0 !== null) return im0[0] + v0;
+      }
+    }
+    return null;
+  };
+  assert.equal(translatedValue('なっ!!そんなことできる訳がありません!!'), 'なっ!!那怎么可能办到!!');
+  assert.equal(translatedValue('っ!!そんなことできる訳がありません!!'), 'っ!!那怎么可能办到!!');
+  assert.equal(translatedValue('ふっ!!そんなことできる訳がありません!!'), 'ふっ!!那怎么可能办到!!');
+  assert.equal(translatedValue('そんなことできる訳がありません!!'), '那怎么可能办到!!');
+  assert.equal(translatedValue('関係ない'), null, '无命中不得改写');
+});
+
 test('server.mjs keeps the chain markers (drift guard)', () => {
   const src = fs.readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
   assert.ok(src.includes("replace(/[.．。…]{2,}/g,'…')"), '省略号折叠缺失');
@@ -88,4 +115,7 @@ test('server.mjs keeps the chain markers (drift guard)', () => {
   assert.ok(src.includes("const stripBareTags=key=>key.replace(/<[^<>]{1,24}>/g,'')"), '裸标签剥离缺失');
   assert.ok(src.includes('const tvBase=key=>'), 'tvBase 链缺失');
   assert.ok(src.includes('key.match(/^(?:<[^<>]{1,24}>|'), '裸标签前缀还原缺失');
+  assert.ok(src.includes('const im0=key.match(/^(?:[ぁ-んァ-ヶー]{1,3}'), '口语前缀分支缺失');
+  assert.ok(src.includes('const rubyCount=k=>{'), 'ruby 计数缺失');
+  assert.ok(src.includes('const rubyFix='), 'ruby 括号修复缺失');
 });
