@@ -107,3 +107,18 @@ export async function serveGodotWeb(req, res, deps, game, root, sub, loadSession
   }
   return serveFile(req, res, root, sub, 'public, max-age=3600', loadSession, RUNTIME_HEADERS);
 }
+// Godot 4.4 的引擎强制要求 Secure Context（getMissingFeatures 含 'Secure Context' 检查）：
+// 局域网明文 HTTP 下引擎会直接拒绝启动（错误框 "missing"）。非本机 HTTP 请求一律 302 到 HTTPS。
+export function godotWebHttpsRedirect({ req, url, httpsConfig }) {
+  if (!httpsConfig?.enabled) return null;
+  if (req.socket?.encrypted) return null;
+  const proto = String(req.headers['x-forwarded-proto'] || '').toLowerCase();
+  if (proto === 'https') return null;
+  const host = String(req.headers.host || '').replace(/:\d+$/, '').toLowerCase();
+  if (!host || host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]') return null;
+  const targetHost = String(host || httpsConfig.publicHost || '').replace(/:\d+$/, '');
+  const port = Number(httpsConfig.port) || 8788;
+  const origin = 'https://' + targetHost + (port === 443 ? '' : ':' + port);
+  return origin + url.pathname + url.search;
+}
+
