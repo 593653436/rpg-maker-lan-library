@@ -2,6 +2,13 @@
 
 本文遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号遵循语义化版本。
 
+## [1.8.1] - 2026-10-04
+
+### Fixed
+
+- **Godot Web 通道局域网无法启动（引擎报 `missing`）**：Godot 4.4 的 `Engine.getMissingFeatures` 含 **Secure Context** 检查——局域网明文 HTTP 不是安全上下文，引擎直接拒绝启动（此前仅本机 localhost / HTTPS 可用）。现非本机的 HTTP 请求（`player.html?game=<godot>` 与游戏路由本身）一律 302 到已配置的 HTTPS 来源（优先使用请求 host 以保留会话，`https.publicHost` 兜底；已加密与反代 HTTPS 不跳转）。
+- 合成回归新增 `godotWebHttpsRedirect` 用例（本机/加密/反代/局域网/未启用五类分支）。
+
 ## [1.8.0] - 2026-10-04
 
 ### Added（实验性）
