@@ -1,6 +1,6 @@
 {
   "name": "rpg-maker-lan-library",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Stream locally owned RPG Maker MV/MZ, RGSS (VX Ace) and KiriKiri 2 (KRKR) games over a LAN from any local or SMB/UNC path, with save bridging and content-signature-gated browser compatibility fixes. Includes experimental support for hosting Godot 4 web exports.",
   "private": false,
   "type": "module",
