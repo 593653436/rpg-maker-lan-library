@@ -6,7 +6,7 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import { isGodotWeb, serveGodotWeb } from '../godot-web-compat.mjs';
+import { isGodotWeb, serveGodotWeb, godotWebHttpsRedirect } from '../godot-web-compat.mjs';
 
 const SRC = fs.readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
 
@@ -99,4 +99,17 @@ test('server.mjs 接线防漂移', () => {
   assert.ok(SRC.includes('serveGodotWeb(req,res,'), '路由分派缺失');
   assert.ok(SRC.includes("kind:'godotweb'"), '导入识别缺失');
   assert.ok(fs.existsSync(new URL('../godot-web-compat.mjs', import.meta.url)), '模块文件缺失');
+});
+
+test('godotWebHttpsRedirect：非本机 HTTP 一律跳 HTTPS（Secure Context）', () => {
+  const url = new URL('http://203.0.113.10:8787/player.html?game=x');
+  const cfg = { enabled: true, port: 8788, publicHost: '203.0.113.10' };
+  const call = (headers, socket = {}, httpsConfig = cfg) => godotWebHttpsRedirect({ req: { headers, socket }, url, httpsConfig });
+  assert.equal(call({ host: '203.0.113.10:8788' }, { encrypted: true }), null, '已加密不得跳转');
+  assert.equal(call({ host: '127.0.0.1:8787' }), null, '本机不得跳转');
+  assert.equal(call({ host: 'localhost:8787' }), null, 'localhost 不得跳转');
+  assert.equal(call({ host: '203.0.113.10:8787', 'x-forwarded-proto': 'https' }), null, '反代 HTTPS 不得跳转');
+  assert.equal(call({ host: '203.0.113.10:8787' }), 'https://203.0.113.10:8788/player.html?game=x', '局域网 HTTP 必须跳转');
+  assert.equal(call({ host: '198.51.100.7:9000' }), 'https://198.51.100.7:8788/player.html?game=x', '优先请求 host 以保留会话');
+  assert.equal(call({ host: '203.0.113.10:8787' }, {}, { enabled: false }), null, 'HTTPS 未启用不得跳转');
 });
