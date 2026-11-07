@@ -2,6 +2,15 @@
 
 本文遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；版本号遵循语义化版本。
 
+## [1.8.0] - 2026-10-04
+
+### Added（实验性）
+
+- **Godot Web 导出游戏通道（实验性 / Experimental）**（`godot-web-compat.mjs`）：识别同时含 `index.html` + `index.wasm` + `index.pck` 的官方 Web 导出目录（内容指纹，不依赖游戏 ID），由柜子直接分发运行。复用 `serveFile` 的 **Range(206)** 支持数百 MB~GB 级 pck 流式加载；索引页响应层改写（存档接口绝对路径→相对、注入 `<base>`）；注入引擎就绪信号（`mist-game-ready`）解除加载遮罩。
+- **Godot 存档 sidecar**：`GET|PUT /games/<id>/__save/<name>` → 游戏目录 `saves/<name>`（8MB 上限、`.tmp` 原子写、写前 `.bak`），存档随游戏目录跨机器/浏览器一致；`__save/_meta` 返回文件清单。导入识别（`detectGameProject`）同步支持该结构。
+- 说明：**实验性功能**——仅面向桌面浏览器（Godot Web 官方不支持移动端）；翻译需转换包内自带（浏览器无法注入引擎级文本钩子）。
+- 合成回归测试新增 `godot-web-compat`（指纹 / 索引改写 / 静态分发 / 存档往返 / 防漂移）。
+
 ## [1.7.0] - 2026-10-04
 
 ### Added

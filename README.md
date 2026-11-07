@@ -14,6 +14,7 @@
 
 - 从**任意本地磁盘或 SMB/UNC 地址**按需流式读取游戏与网页回想室，不受根目录限制
 - 支持 RPG Maker MV/MZ（`index.html` / `www/index.html`）、RGSS VX Ace（mkxp-z WebAssembly 运行时）与 KiriKiri 2 / KRKR（`data.xp3` + 内置 WebAssembly 运行时）
+- （实验性）支持 **Godot 4 Web 导出包**（`index.html` + `index.wasm` + `index.pck`）：桌面浏览器运行，存档经游戏目录 `saves/` sidecar 保存（Godot Web 官方不支持移动端浏览器）
 - 支持 Enigma 封装启动器的只读网页覆盖层与多语言版本选择
 - MV/MZ 存档桥：浏览器设备共享源目录存档；只读目录自动回退到本地数据目录
 - 固定名称存档白名单，避免任意文件读写与路径遍历
